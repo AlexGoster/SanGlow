@@ -1,0 +1,208 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-windows-x64:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          pip install pyinstaller pillow
+
+      - name: Build x64
+        run: python build.py x64
+
+      - name: Create installer
+        uses: JRSoftware/innosetup-action@v1
+        with:
+          script: installer.iss
+
+      - name: Rename installer
+        run: Rename-Item -Path installer_output\sanglow_setup.exe -NewName sanglow_setup_x64.exe
+
+      - name: Create portable zip
+        run: Compress-Archive -Path dist\SanGlow-x64\* -DestinationPath SanGlow-Windows-x64.zip
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: SanGlow-Windows-x64
+          path: |
+            installer_output/sanglow_setup_x64.exe
+            SanGlow-Windows-x64.zip
+
+  build-windows-x86:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          pip install pyinstaller pillow
+
+      - name: Build x86
+        run: python build.py x86
+
+      - name: Create installer
+        uses: JRSoftware/innosetup-action@v1
+        with:
+          script: installer.iss
+
+      - name: Rename installer
+        run: Rename-Item -Path installer_output\sanglow_setup.exe -NewName sanglow_setup_x86.exe
+
+      - name: Create portable zip
+        run: Compress-Archive -Path dist\SanGlow-x86\* -DestinationPath SanGlow-Windows-x86.zip
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: SanGlow-Windows-x86
+          path: |
+            installer_output/sanglow_setup_x86.exe
+            SanGlow-Windows-x86.zip
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          pip install pyinstaller pillow
+
+      - name: Build
+        run: |
+          pyinstaller src/main.py \
+            --name SanGlow \
+            --onedir \
+            --windowed \
+            --icon=assets/icon.ico \
+            --add-data=config:config \
+            --add-data=assets:assets \
+            --hidden-import=pygame \
+            --hidden-import=spotipy \
+            --hidden-import=sqlalchemy \
+            --hidden-import=PyQt6 \
+            --collect-submodules=PyQt6
+
+      - name: Create DMG
+        run: hdiutil create -volname "SanGlow" -srcfolder dist/SanGlow -ov -format UDZO SanGlow-macOS.dmg
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: SanGlow-macOS
+          path: SanGlow-macOS.dmg
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          pip install pyinstaller pillow
+
+      - name: Build
+        run: |
+          pyinstaller src/main.py \
+            --name SanGlow \
+            --onedir \
+            --windowed \
+            --icon=assets/icon.ico \
+            --add-data=config:config \
+            --add-data=assets:assets \
+            --hidden-import=pygame \
+            --hidden-import=spotipy \
+            --hidden-import=sqlalchemy \
+            --hidden-import=PyQt6 \
+            --collect-submodules=PyQt6
+
+      - name: Create tarball
+        run: tar -czf SanGlow-Linux-x64.tar.gz -C dist SanGlow
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: SanGlow-Linux
+          path: SanGlow-Linux-x64.tar.gz
+
+  release:
+    needs: [build-windows-x64, build-windows-x86, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: SanGlow ${{ github.ref_name }}
+          files: |
+            SanGlow-Windows-x64/sanglow_setup_x64.exe
+            SanGlow-Windows-x64/SanGlow-Windows-x64.zip
+            SanGlow-Windows-x86/sanglow_setup_x86.exe
+            SanGlow-Windows-x86/SanGlow-Windows-x86.zip
+            SanGlow-macOS/SanGlow-macOS.dmg
+            SanGlow-Linux/SanGlow-Linux-x64.tar.gz
+          body: |
+            ## SanGlow ${{ github.ref_name }}
+
+            ### Скачать
+
+            | ОС | Архитектура | Файл |
+            |----|-------------|------|
+            | **Windows** | x64 (64-bit) | `sanglow_setup_x64.exe` |
+            | **Windows** | x86 (32-bit) | `sanglow_setup_x86.exe` |
+            | **Windows** | x64 portable | `SanGlow-Windows-x64.zip` |
+            | **Windows** | x86 portable | `SanGlow-Windows-x86.zip` |
+            | **macOS** | Universal | `SanGlow-macOS.dmg` |
+            | **Linux** | x64 | `SanGlow-Linux-x64.tar.gz` |
+          draft: false
+          prerelease: false
+          generate_release_notes: true
