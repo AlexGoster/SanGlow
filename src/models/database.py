@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 from contextlib import contextmanager
 from pathlib import Path
@@ -34,6 +35,10 @@ def _get_engine():
             echo=False,
             connect_args={"check_same_thread": False},
         )
+        try:
+            os.chmod(db_path, 0o600)
+        except (OSError, PermissionError):
+            pass
     return _engine
 
 
@@ -72,3 +77,7 @@ def init_db() -> None:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     engine = _get_engine()
     Base.metadata.create_all(bind=engine)
+    try:
+        os.chmod(db_path, 0o600)
+    except (OSError, PermissionError):
+        pass

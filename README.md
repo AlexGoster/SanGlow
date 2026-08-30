@@ -114,4 +114,4 @@ SanGlow/
 
 ## Лицензия
 
-[MIT License](LICENSE) — 2026 AlexGoster
+[MIT License](LICENSE) — 2024-2026 AlexGoster

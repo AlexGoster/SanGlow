@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import csv
+import os
 from pathlib import Path
 from typing import Any
 
@@ -25,12 +26,22 @@ class PlaylistImporter:
                 return self.import_from_spotify(parts[1].split("?")[0])
         return None
 
+    def _validate_output_path(self, output_path: str) -> Path:
+        resolved = Path(output_path).resolve()
+        try:
+            resolved.relative_to(Path.cwd().resolve())
+        except ValueError:
+            raise ValueError(f"Output path must be within the working directory: {output_path}")
+        return resolved
+
     def export_to_json(self, playlist: PlaylistInfo, output_path: str) -> None:
+        safe_path = self._validate_output_path(output_path)
         data = {"name": playlist.name, "description": playlist.description, "tracks": [{"id": t.id, "name": t.name, "artist": t.artist} for t in playlist.tracks]}
-        Path(output_path).write_text(json.dumps(data, indent=2, ensure_ascii=False))
+        safe_path.write_text(json.dumps(data, indent=2, ensure_ascii=False))
 
     def export_to_csv(self, playlist: PlaylistInfo, output_path: str) -> None:
-        with open(output_path, "w", newline="", encoding="utf-8") as f:
+        safe_path = self._validate_output_path(output_path)
+        with open(safe_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow(["Title", "Artist", "Album", "Duration (ms)", "Spotify ID"])
             for track in playlist.tracks:

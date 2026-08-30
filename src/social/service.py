@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -9,11 +10,26 @@ from sqlalchemy.orm import Session
 from src.models.social import Comment, Like, Favorite, Wave, WaveTrack
 
 
+def _sanitize(text: str, max_len: int = 1000) -> str:
+    text = text.strip()
+    text = re.sub(r"<[^>]+>", "", text)
+    return text[:max_len]
+
+
+def _sanitize_name(text: str, max_len: int = 100) -> str:
+    text = text.strip()
+    text = re.sub(r"[<>&\"']", "", text)
+    return text[:max_len]
+
+
 @dataclass
 class SocialService:
     db: Session
 
     def add_comment(self, user_id: str, track_id: str, text: str, source: str = "local") -> Comment:
+        text = _sanitize(text, 2000)
+        if not text:
+            raise ValueError("Comment cannot be empty")
         comment = Comment(user_id=user_id, track_id=track_id, text=text, source=source)
         self.db.add(comment)
         self.db.commit()
@@ -25,7 +41,7 @@ class SocialService:
             self.db.query(Comment)
             .filter(Comment.track_id == track_id)
             .order_by(Comment.created_at.desc())
-            .limit(limit)
+            .limit(min(limit, 100))
             .all()
         )
         return [c.to_dict() for c in comments]
@@ -62,11 +78,11 @@ class SocialService:
         if existing:
             return None
         fav = Favorite(
-            user_id=user_id, track_id=track_data.get("id", ""),
-            source=track_data.get("source", "local"),
-            title=track_data.get("name", track_data.get("title", "Unknown")),
-            artist=track_data.get("artist", "Unknown"),
-            album=track_data.get("album"),
+            user_id=user_id, track_id=_sanitize(str(track_data.get("id", "")), 200),
+            source=_sanitize(str(track_data.get("source", "local")), 50),
+            title=_sanitize(str(track_data.get("name", track_data.get("title", "Unknown"))), 500),
+            artist=_sanitize(str(track_data.get("artist", "Unknown")), 500),
+            album=_sanitize(str(track_data.get("album") or ""), 500),
             cover_url=track_data.get("cover_url"),
             preview_url=track_data.get("preview_url"),
             duration_ms=track_data.get("duration_ms"),
@@ -92,7 +108,7 @@ class SocialService:
             self.db.query(Favorite)
             .filter(Favorite.user_id == user_id)
             .order_by(Favorite.created_at.desc())
-            .limit(limit)
+            .limit(min(limit, 500))
             .all()
         )
         return [{"id": f.track_id, "name": f.title, "artist": f.artist, "album": f.album,
@@ -100,6 +116,10 @@ class SocialService:
                  "duration_ms": f.duration_ms, "source": f.source} for f in favs]
 
     def create_wave(self, user_id: str, name: str, description: str = "") -> Wave:
+        name = _sanitize_name(name, 100)
+        description = _sanitize(description, 500)
+        if not name:
+            raise ValueError("Wave name cannot be empty")
         wave = Wave(user_id=user_id, name=name, description=description)
         self.db.add(wave)
         self.db.commit()
@@ -116,11 +136,11 @@ class SocialService:
             return None
         pos = len(wave.tracks)
         wt = WaveTrack(
-            wave_id=wave_id, track_id=track_data.get("id", ""),
-            source=track_data.get("source", "local"),
-            title=track_data.get("name", track_data.get("title", "Unknown")),
-            artist=track_data.get("artist", "Unknown"),
-            album=track_data.get("album"),
+            wave_id=wave_id, track_id=_sanitize(str(track_data.get("id", "")), 200),
+            source=_sanitize(str(track_data.get("source", "local")), 50),
+            title=_sanitize(str(track_data.get("name", track_data.get("title", "Unknown"))), 500),
+            artist=_sanitize(str(track_data.get("artist", "Unknown")), 500),
+            album=_sanitize(str(track_data.get("album") or ""), 500),
             cover_url=track_data.get("cover_url"),
             preview_url=track_data.get("preview_url"),
             duration_ms=track_data.get("duration_ms"),

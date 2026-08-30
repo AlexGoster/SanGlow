@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import secrets
 import sys
 from pathlib import Path
 from functools import lru_cache
@@ -21,7 +23,7 @@ class SpotifyConfig(BaseSettings):
     client_id: str = Field(default="", alias="SPOTIFY_CLIENT_ID")
     client_secret: SecretStr = Field(default=SecretStr(""), alias="SPOTIFY_CLIENT_SECRET")
     redirect_uri: str = Field(
-        default="http://localhost:8888/callback", alias="SPOTIFY_REDIRECT_URI"
+        default="http://127.0.0.1:8888/callback", alias="SPOTIFY_REDIRECT_URI"
     )
     scope: str = (
         "user-read-private user-read-email user-library-read "
@@ -39,14 +41,36 @@ class ZvukConfig(BaseSettings):
     model_config = {"env_prefix": "", "extra": "ignore"}
 
 
+def _generate_or_validate_key(env_var: str, label: str) -> str:
+    val = os.environ.get(env_var, "")
+    if not val or "change-in-production" in val:
+        key_file = BASE_DIR / "data" / f"{env_var.lower()}.key"
+        if key_file.exists():
+            val = key_file.read_text().strip()
+        else:
+            val = secrets.token_urlsafe(64)
+            key_file.parent.mkdir(parents=True, exist_ok=True)
+            key_file.write_text(val)
+            os.chmod(key_file, 0o600)
+    return val
+
+
 class SecurityConfig(BaseSettings):
-    jwt_secret_key: SecretStr = Field(default=SecretStr("sanglow-dev-secret-key-change-in-production"), alias="JWT_SECRET_KEY")
-    encryption_key: SecretStr = Field(default=SecretStr("sanglow-dev-encryption-key-change-in-production"), alias="ENCRYPTION_KEY")
+    jwt_secret_key: SecretStr = Field(default=SecretStr(""), alias="JWT_SECRET_KEY")
+    encryption_key: SecretStr = Field(default=SecretStr(""), alias="ENCRYPTION_KEY")
     jwt_algorithm: str = "HS256"
     token_expire_minutes: int = 60 * 24
     bcrypt_rounds: int = 12
+    max_login_attempts: int = 5
+    lockout_minutes: int = 15
 
     model_config = {"env_prefix": "", "extra": "ignore"}
+
+    def model_post_init(self, __context: object) -> None:
+        if not self.jwt_secret_key.get_secret_value():
+            self.jwt_secret_key = SecretStr(_generate_or_validate_key("JWT_SECRET_KEY", "JWT"))
+        if not self.encryption_key.get_secret_value():
+            self.encryption_key = SecretStr(_generate_or_validate_key("ENCRYPTION_KEY", "encryption"))
 
 
 class DatabaseConfig(BaseSettings):

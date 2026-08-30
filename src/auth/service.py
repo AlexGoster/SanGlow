@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+import time
+from dataclasses import dataclass, field
 
 from sqlalchemy.orm import Session
 
@@ -16,6 +17,9 @@ class AuthResult:
     access_token: str | None = None
     refresh_token: str | None = None
     error: str | None = None
+
+
+_login_attempts: dict[str, list[float]] = {}
 
 
 class AuthService:
@@ -44,9 +48,25 @@ class AuthService:
         return AuthResult(success=True, user=user, access_token=self.jwt_handler.create_access_token(user.id), refresh_token=self.jwt_handler.create_refresh_token(user.id))
 
     def login(self, username_or_email: str, password: str) -> AuthResult:
+        from config.settings import get_security_config
+        cfg = get_security_config()
+
+        key = username_or_email.lower()
+        now = time.time()
+        if key in _login_attempts:
+            _login_attempts[key] = [t for t in _login_attempts[key] if now - t < cfg.lockout_minutes * 60]
+            if len(_login_attempts[key]) >= cfg.max_login_attempts:
+                remaining = int(cfg.lockout_minutes * 60 - (now - _login_attempts[key][0]))
+                return AuthResult(success=False, error=f"Too many attempts. Try again in {remaining // 60}m {remaining % 60}s")
+
         user = self.db.query(User).filter((User.username == username_or_email) | (User.email == username_or_email)).first()
         if not user or not user.check_password(password):
-            return AuthResult(success=False, error="Invalid credentials")
+            _login_attempts.setdefault(key, []).append(now)
+            attempts_left = cfg.max_login_attempts - len(_login_attempts.get(key, []))
+            return AuthResult(success=False, error=f"Invalid credentials ({attempts_left} attempts left)")
+
+        _login_attempts.pop(key, None)
+
         if not user.is_active:
             return AuthResult(success=False, error="Account is deactivated")
         return AuthResult(success=True, user=user, access_token=self.jwt_handler.create_access_token(user.id), refresh_token=self.jwt_handler.create_refresh_token(user.id))
