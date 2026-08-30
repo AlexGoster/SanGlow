@@ -13,6 +13,7 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from src.spotify.client import SpotifyClient, Track
 from src.player.engine import MusicPlayer
 from src.ui.widgets.player_bar import PlayerBar
+from src.ui.greeting import get_greeting, get_suggested_playlists, get_time_of_day
 from src.models.database import get_db_session
 from src.social.service import SocialService
 
@@ -168,6 +169,42 @@ class WaveCard(QFrame):
         self.mousePressEvent = lambda e: self.clicked.emit(self.wave_id)
 
 
+class PlaylistCard(QFrame):
+    clicked = pyqtSignal(dict)
+
+    def __init__(self, playlist: dict, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.playlist = playlist
+        self.setObjectName("card")
+        self.setFixedHeight(80)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(14, 10, 14, 10)
+        layout.setSpacing(12)
+
+        icon = QLabel("\u266B")
+        icon.setFixedSize(56, 56)
+        icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        icon.setStyleSheet("background-color: #2a2a2a; color: #e8734a; border-radius: 8px; font-size: 22px;")
+        layout.addWidget(icon)
+
+        col = QVBoxLayout()
+        col.setSpacing(2)
+        name = QLabel(playlist.get("name", "Playlist"))
+        name.setStyleSheet("font-size: 14px; font-weight: 600; color: #e0d6cc; background: transparent;")
+        col.addWidget(name)
+        desc = QLabel(playlist.get("description", ""))
+        desc.setStyleSheet("font-size: 11px; color: #8a8580; background: transparent;")
+        desc.setMaximumWidth(300)
+        descElide = desc.fontMetrics().elidedText(playlist.get("description", ""), Qt.TextElideMode.ElideRight, 300)
+        desc.setText(descElide)
+        col.addWidget(desc)
+        layout.addLayout(col, stretch=1)
+
+        self.mousePressEvent = lambda e: self.clicked.emit(self.playlist)
+
+
 class MainWindow(QWidget):
     def __init__(self, user_data: dict, spotify_client: SpotifyClient | None = None) -> None:
         super().__init__()
@@ -274,9 +311,24 @@ class MainWindow(QWidget):
         layout.setContentsMargins(28, 24, 28, 16)
         layout.setSpacing(20)
 
-        greeting = QLabel(f"Good evening, {self._user_data.get('display_name', 'User')}")
-        greeting.setObjectName("sectionTitle")
-        layout.addWidget(greeting)
+        greeting = get_greeting(self._user_data.get("display_name"))
+        greeting_label = QLabel(f"{greeting.emoji}  {greeting.text}")
+        greeting_label.setObjectName("sectionTitle")
+        greeting_label.setStyleSheet("font-size: 28px; font-weight: 700; color: #e0d6cc; padding: 8px 0;")
+        layout.addWidget(greeting_label)
+
+        playlists = get_suggested_playlists()
+        pl_header = QLabel("Рекомендации для тебя")
+        pl_header.setObjectName("sectionTitle")
+        layout.addWidget(pl_header)
+
+        pl_grid = QGridLayout()
+        pl_grid.setSpacing(12)
+        for i, pl in enumerate(playlists[:6]):
+            card = PlaylistCard(pl)
+            card.clicked.connect(self._on_playlist_card_clicked)
+            pl_grid.addWidget(card, i // 3, i % 3)
+        layout.addLayout(pl_grid)
 
         quick_grid = QGridLayout()
         quick_grid.setSpacing(12)
@@ -307,6 +359,9 @@ class MainWindow(QWidget):
 
         layout.addStretch()
         return page
+
+    def _on_playlist_card_clicked(self, playlist: dict) -> None:
+        QMessageBox.information(self, playlist.get("name", "Playlist"), playlist.get("description", "No description"))
 
     def _create_search_page(self) -> QWidget:
         page = QWidget()
