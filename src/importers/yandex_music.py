@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import re
+from urllib.parse import quote
+
 from dataclasses import dataclass
 from typing import Any
-import re
 
 import httpx
 
@@ -42,7 +44,9 @@ class YandexMusicImporter:
         match = re.search(r"playlist/([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)", url)
         if match:
             try:
-                response = self._client.get(f"{self.BASE_URL}/users/{match.group(1)}/playlists/{match.group(2)}")
+                user_id = quote(match.group(1), safe="")
+                playlist_id = quote(match.group(2), safe="")
+                response = self._client.get(f"{self.BASE_URL}/users/{user_id}/playlists/{playlist_id}")
                 response.raise_for_status()
                 return [t for item in response.json().get("result", {}).get("tracks", []) if (t := self._parse_track(item.get("track", item))) is not None]
             except Exception:

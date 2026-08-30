@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -23,22 +25,28 @@ class Track:
 
 class SoundCloudImporter:
     BASE_URL = "https://api-v2.soundcloud.com"
-    CLIENT_ID = "M0tf8EUc6U6eM9aGR0j0aGJebKRkCp0M"
 
     def __init__(self) -> None:
+        self._client_id = os.environ.get("SOUNDCLOUD_CLIENT_ID", "")
         self._client = httpx.Client(headers={"User-Agent": "Mozilla/5.0"}, follow_redirects=True)
 
     def search(self, query: str, limit: int = 20) -> list[Track]:
+        if not self._client_id:
+            return []
         try:
-            response = self._client.get(f"{self.BASE_URL}/tracks", params={"q": query, "client_id": self.CLIENT_ID, "limit": limit})
+            response = self._client.get(f"{self.BASE_URL}/tracks", params={"q": query, "client_id": self._client_id, "limit": limit})
             response.raise_for_status()
             return [t for item in response.json()[:limit] if (t := self._parse_track(item)) is not None]
         except Exception:
             return []
 
     def import_from_url(self, url: str) -> list[Track]:
+        if not self._client_id:
+            return []
+        if not re.match(r"^https?://(www\.)?soundcloud\.com/", url):
+            return []
         try:
-            response = self._client.get("https://api.soundcloud.com/resolve", params={"url": url, "client_id": self.CLIENT_ID})
+            response = self._client.get("https://api.soundcloud.com/resolve", params={"url": url, "client_id": self._client_id})
             response.raise_for_status()
             data = response.json()
             if "tracks" in data:
@@ -55,7 +63,7 @@ class SoundCloudImporter:
                 artwork = artwork.replace("-large", "-t300x300")
             stream = data.get("stream_url", "")
             if stream and "?" not in stream:
-                stream = f"{stream}?client_id={self.CLIENT_ID}"
+                stream = f"{stream}?client_id={self._client_id}"
             return Track(id=str(data.get("id", "")), title=data.get("title", ""), artist=data.get("user", {}).get("username", ""), album="", duration_ms=data.get("duration", 0), cover_url=artwork, audio_url=stream)
         except (IndexError, KeyError):
             return None

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 import bcrypt
 from sqlalchemy import Boolean, DateTime, String, Text
@@ -24,14 +24,16 @@ class User(Base):
     spotify_access_token: Mapped[str | None] = mapped_column(Text, nullable=True)
     spotify_refresh_token: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     playlists = relationship("Playlist", back_populates="user", lazy="selectin")
     history = relationship("ListeningHistory", back_populates="user", lazy="selectin")
 
     def set_password(self, password: str) -> None:
-        salt = bcrypt.gensalt(rounds=12)
+        from config.settings import get_security_config
+        rounds = get_security_config().bcrypt_rounds
+        salt = bcrypt.gensalt(rounds=rounds)
         self.password_hash = bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
 
     def check_password(self, password: str) -> bool:

@@ -16,38 +16,37 @@ class TimeOfDay(Enum):
 @dataclass
 class Greeting:
     text: str
-    emoji: str
     time_of_day: TimeOfDay
 
 
 _GREETINGS = {
     TimeOfDay.MORNING: [
-        ("Доброе утро", "🌅"),
-        ("Утро начинается", "☀️"),
-        ("Доброе утро, {name}", "🌤️"),
-        ("Просыпайся, {name}", "🎵"),
-        ("Утро, {name}!", "☕"),
+        "Доброе утро",
+        "Утро начинается",
+        "Доброе утро, {name}",
+        "Просыпайся, {name}",
+        "Утро, {name}",
     ],
     TimeOfDay.DAY: [
-        ("Добрый день", "🌞"),
-        ("Привет, {name}", "👋"),
-        ("Хорошего дня, {name}", "🎶"),
-        ("День в ритме, {name}", "🎧"),
-        ("Привет, {name}!", "🎵"),
+        "Добрый день",
+        "Привет, {name}",
+        "Хорошего дня, {name}",
+        "День в ритме, {name}",
+        "Привет, {name}",
     ],
     TimeOfDay.EVENING: [
-        ("Добрый вечер", "🌆"),
-        ("Вечерний ритм, {name}", "🎶"),
-        ("Вечерний микс, {name}", "🎧"),
-        ("Отдыхай, {name}", "🌙"),
-        ("Вечер в ритме, {name}", "🎵"),
+        "Добрый вечер",
+        "Вечерний ритм, {name}",
+        "Вечер, {name}",
+        "Отдыхай, {name}",
+        "Вечер в ритме, {name}",
     ],
     TimeOfDay.NIGHT: [
-        ("Спокойной ночи", "🌙"),
-        ("Ночная музыка, {name}", "🎶"),
-        ("Тихий вечер, {name}", "🎧"),
-        ("Ночной микс, {name}", "🎵"),
-        ("Спокойной ночи, {name}", "🌌"),
+        "Спокойной ночи",
+        "Ночная музыка, {name}",
+        "Тихий вечер, {name}",
+        "Ночной микс, {name}",
+        "Спокойной ночи, {name}",
     ],
 }
 
@@ -89,10 +88,11 @@ def get_time_of_day() -> TimeOfDay:
 
 def get_greeting(username: str | None = None) -> Greeting:
     tod = get_time_of_day()
-    text, emoji = random.choice(_GREETINGS[tod])
+    text = random.choice(_GREETINGS[tod])
     if "{name}" in text and username:
-        text = text.format(name=username)
-    return Greeting(text=text, emoji=emoji, time_of_day=tod)
+        safe_name = username[:50].strip() or "User"
+        text = text.format(name=safe_name)
+    return Greeting(text=text, time_of_day=tod)
 
 
 def get_suggested_playlists(user_likes: list[str] | None = None) -> list[dict]:

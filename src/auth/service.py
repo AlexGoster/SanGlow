@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import re
+import threading
 import time
 from dataclasses import dataclass, field
 
 from sqlalchemy.orm import Session
 
 from src.models.user import User
+from src.utils.validators import sanitize_display_name
 from .jwt_handler import JWTHandler
 
 
@@ -20,6 +22,7 @@ class AuthResult:
 
 
 _login_attempts: dict[str, list[float]] = {}
+_login_lock = threading.Lock()
 
 
 class AuthService:
@@ -39,7 +42,8 @@ class AuthService:
         if self.db.query(User).filter(User.email == email).first():
             return AuthResult(success=False, error="Email already registered")
 
-        user = User(username=username, email=email, display_name=display_name or username)
+        safe_display = sanitize_display_name(display_name) if display_name else username
+        user = User(username=username, email=email, display_name=safe_display)
         user.set_password(password)
         self.db.add(user)
         self.db.commit()
@@ -53,19 +57,22 @@ class AuthService:
 
         key = username_or_email.lower()
         now = time.time()
-        if key in _login_attempts:
-            _login_attempts[key] = [t for t in _login_attempts[key] if now - t < cfg.lockout_minutes * 60]
-            if len(_login_attempts[key]) >= cfg.max_login_attempts:
-                remaining = int(cfg.lockout_minutes * 60 - (now - _login_attempts[key][0]))
-                return AuthResult(success=False, error=f"Too many attempts. Try again in {remaining // 60}m {remaining % 60}s")
+        with _login_lock:
+            if key in _login_attempts:
+                _login_attempts[key] = [t for t in _login_attempts[key] if now - t < cfg.lockout_minutes * 60]
+                if len(_login_attempts[key]) >= cfg.max_login_attempts:
+                    remaining = int(cfg.lockout_minutes * 60 - (now - _login_attempts[key][0]))
+                    return AuthResult(success=False, error=f"Too many attempts. Try again in {remaining // 60}m {remaining % 60}s")
 
         user = self.db.query(User).filter((User.username == username_or_email) | (User.email == username_or_email)).first()
         if not user or not user.check_password(password):
-            _login_attempts.setdefault(key, []).append(now)
-            attempts_left = cfg.max_login_attempts - len(_login_attempts.get(key, []))
+            with _login_lock:
+                _login_attempts.setdefault(key, []).append(now)
+                attempts_left = cfg.max_login_attempts - len(_login_attempts.get(key, []))
             return AuthResult(success=False, error=f"Invalid credentials ({attempts_left} attempts left)")
 
-        _login_attempts.pop(key, None)
+        with _login_lock:
+            _login_attempts.pop(key, None)
 
         if not user.is_active:
             return AuthResult(success=False, error="Account is deactivated")

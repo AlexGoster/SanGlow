@@ -464,7 +464,7 @@ class MainWindow(QWidget):
             if wave_id:
                 with get_db_session() as db:
                     svc = SocialService(db)
-                    tracks = svc.get_wave_tracks(wave_id)
+                    tracks = svc.get_wave_tracks(wave_id, self._user_id)
                 self._wave_tracks_list.clear()
                 for t in tracks:
                     self._wave_tracks_list.addItem(f"{t['name']} — {t['artist']}")

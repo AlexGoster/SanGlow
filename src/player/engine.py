@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+import re
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -8,19 +10,34 @@ import httpx
 import pygame
 from PyQt6.QtCore import QObject, QThread, pyqtSignal
 
+logger = logging.getLogger(__name__)
+
 
 class AudioWorker(QObject):
     finished = pyqtSignal()
     error = pyqtSignal(str)
+
+    ALLOWED_DOMAINS = ("spotify.com", "scdn.co", "soundcloud.com", "sndcdn.com", "ytimg.com", "youtube.com")
 
     def __init__(self, url: str, temp_path: str) -> None:
         super().__init__()
         self.url = url
         self.temp_path = temp_path
 
-    def run(self) -> None:
+    def _is_allowed_url(self, url: str) -> bool:
+        from urllib.parse import urlparse
         try:
-            with httpx.stream("GET", self.url, follow_redirects=True) as response:
+            parsed = urlparse(url)
+            return any(parsed.hostname and parsed.hostname.endswith(d) for d in self.ALLOWED_DOMAINS)
+        except Exception:
+            return False
+
+    def run(self) -> None:
+        if not self._is_allowed_url(self.url):
+            self.error.emit("URL not from allowed domain")
+            return
+        try:
+            with httpx.stream("GET", self.url, follow_redirects=True, timeout=30) as response:
                 response.raise_for_status()
                 with open(self.temp_path, "wb") as f:
                     for chunk in response.iter_bytes(chunk_size=8192):
@@ -47,6 +64,7 @@ class MusicPlayer(QObject):
         self._speed = 1.0
         self._temp_dir = Path(tempfile.mkdtemp(prefix="sanglow_"))
         self._current_file: Path | None = None
+        self._active_threads: list[QThread] = []
 
     @property
     def is_playing(self) -> bool:
@@ -84,7 +102,8 @@ class MusicPlayer(QObject):
             return
         self.stop()
         self._current_track = track
-        cache_file = self._temp_dir / f"{track.get('id', 'unknown')}.mp3"
+        safe_id = re.sub(r"[^a-zA-Z0-9_-]", "", str(track.get("id", "unknown")))[:200] or "unknown"
+        cache_file = self._temp_dir / f"{safe_id}.mp3"
         if cache_file.exists():
             self._play_file(cache_file)
         else:
@@ -95,11 +114,17 @@ class MusicPlayer(QObject):
         thread = QThread()
         worker.moveToThread(thread)
         worker.finished.connect(lambda: self._play_file(target))
-        worker.error.connect(lambda err: print(f"Download error: {err}"))
+        worker.error.connect(lambda err: logger.warning("Download error: %s", err))
         thread.started.connect(worker.run)
         worker.finished.connect(thread.quit)
         worker.error.connect(thread.quit)
+        thread.finished.connect(lambda: self._cleanup_thread(thread))
+        self._active_threads.append(thread)
         thread.start()
+
+    def _cleanup_thread(self, thread: QThread) -> None:
+        if thread in self._active_threads:
+            self._active_threads.remove(thread)
 
     def _play_file(self, file_path: Path) -> None:
         try:
@@ -118,7 +143,7 @@ class MusicPlayer(QObject):
             if self._current_track:
                 self.track_changed.emit(self._current_track)
         except pygame.error as e:
-            print(f"Playback error: {e}")
+            logger.warning("Playback error: %s", e)
 
     def pause(self) -> None:
         if self._is_playing and not self._is_paused:
@@ -145,6 +170,10 @@ class MusicPlayer(QObject):
 
     def cleanup(self) -> None:
         self.stop()
+        for t in self._active_threads[:]:
+            t.quit()
+            t.wait(1000)
+        self._active_threads.clear()
         pygame.mixer.quit()
         import shutil
         shutil.rmtree(self._temp_dir, ignore_errors=True)

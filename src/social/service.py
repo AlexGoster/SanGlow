@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -8,17 +9,22 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from src.models.social import Comment, Like, Favorite, Wave, WaveTrack
+from src.utils.validators import sanitize_input, sanitize_track_id, validate_source
+
+logger = logging.getLogger(__name__)
+
+_MAX_COMMENT_LEN = 2000
+_MAX_NAME_LEN = 100
+_MAX_FIELD_LEN = 500
 
 
-def _sanitize(text: str, max_len: int = 1000) -> str:
-    text = text.strip()
-    text = re.sub(r"<[^>]+>", "", text)
-    return text[:max_len]
+def _sanitize(text: str, max_len: int = _MAX_COMMENT_LEN) -> str:
+    text = sanitize_input(text, max_len)
+    return text
 
 
-def _sanitize_name(text: str, max_len: int = 100) -> str:
-    text = text.strip()
-    text = re.sub(r"[<>&\"']", "", text)
+def _sanitize_name(text: str, max_len: int = _MAX_NAME_LEN) -> str:
+    text = re.sub(r"[<>&\"']", "", text.strip())
     return text[:max_len]
 
 
@@ -27,9 +33,11 @@ class SocialService:
     db: Session
 
     def add_comment(self, user_id: str, track_id: str, text: str, source: str = "local") -> Comment:
-        text = _sanitize(text, 2000)
+        text = _sanitize(text, _MAX_COMMENT_LEN)
         if not text:
             raise ValueError("Comment cannot be empty")
+        source = validate_source(source)
+        track_id = sanitize_track_id(track_id)
         comment = Comment(user_id=user_id, track_id=track_id, text=text, source=source)
         self.db.add(comment)
         self.db.commit()
@@ -37,6 +45,7 @@ class SocialService:
         return comment
 
     def get_comments(self, track_id: str, limit: int = 50) -> list[dict]:
+        track_id = sanitize_track_id(track_id)
         comments = (
             self.db.query(Comment)
             .filter(Comment.track_id == track_id)
@@ -55,6 +64,8 @@ class SocialService:
         return False
 
     def toggle_like(self, user_id: str, track_id: str, source: str = "local") -> bool:
+        source = validate_source(source)
+        track_id = sanitize_track_id(track_id)
         existing = self.db.query(Like).filter(Like.user_id == user_id, Like.track_id == track_id).first()
         if existing:
             self.db.delete(existing)
@@ -66,23 +77,26 @@ class SocialService:
         return True
 
     def is_liked(self, user_id: str, track_id: str) -> bool:
+        track_id = sanitize_track_id(track_id)
         return self.db.query(Like).filter(Like.user_id == user_id, Like.track_id == track_id).first() is not None
 
     def get_like_count(self, track_id: str) -> int:
+        track_id = sanitize_track_id(track_id)
         return self.db.query(Like).filter(Like.track_id == track_id).count()
 
     def add_favorite(self, user_id: str, track_data: dict) -> Favorite | None:
+        track_id = sanitize_track_id(str(track_data.get("id", "")))
         existing = self.db.query(Favorite).filter(
-            Favorite.user_id == user_id, Favorite.track_id == track_data.get("id", "")
+            Favorite.user_id == user_id, Favorite.track_id == track_id
         ).first()
         if existing:
             return None
         fav = Favorite(
-            user_id=user_id, track_id=_sanitize(str(track_data.get("id", "")), 200),
-            source=_sanitize(str(track_data.get("source", "local")), 50),
-            title=_sanitize(str(track_data.get("name", track_data.get("title", "Unknown"))), 500),
-            artist=_sanitize(str(track_data.get("artist", "Unknown")), 500),
-            album=_sanitize(str(track_data.get("album") or ""), 500),
+            user_id=user_id, track_id=track_id,
+            source=validate_source(str(track_data.get("source", "local"))),
+            title=_sanitize(str(track_data.get("name", track_data.get("title", "Unknown"))), _MAX_FIELD_LEN),
+            artist=_sanitize(str(track_data.get("artist", "Unknown")), _MAX_FIELD_LEN),
+            album=_sanitize(str(track_data.get("album") or ""), _MAX_FIELD_LEN),
             cover_url=track_data.get("cover_url"),
             preview_url=track_data.get("preview_url"),
             duration_ms=track_data.get("duration_ms"),
@@ -93,6 +107,7 @@ class SocialService:
         return fav
 
     def remove_favorite(self, user_id: str, track_id: str) -> bool:
+        track_id = sanitize_track_id(track_id)
         fav = self.db.query(Favorite).filter(Favorite.user_id == user_id, Favorite.track_id == track_id).first()
         if fav:
             self.db.delete(fav)
@@ -101,6 +116,7 @@ class SocialService:
         return False
 
     def is_favorite(self, user_id: str, track_id: str) -> bool:
+        track_id = sanitize_track_id(track_id)
         return self.db.query(Favorite).filter(Favorite.user_id == user_id, Favorite.track_id == track_id).first() is not None
 
     def get_favorites(self, user_id: str, limit: int = 100) -> list[dict]:
@@ -116,7 +132,7 @@ class SocialService:
                  "duration_ms": f.duration_ms, "source": f.source} for f in favs]
 
     def create_wave(self, user_id: str, name: str, description: str = "") -> Wave:
-        name = _sanitize_name(name, 100)
+        name = _sanitize_name(name, _MAX_NAME_LEN)
         description = _sanitize(description, 500)
         if not name:
             raise ValueError("Wave name cannot be empty")
@@ -130,17 +146,17 @@ class SocialService:
         waves = self.db.query(Wave).filter(Wave.user_id == user_id).order_by(Wave.created_at.desc()).all()
         return [w.to_dict() for w in waves]
 
-    def add_track_to_wave(self, wave_id: str, track_data: dict) -> WaveTrack | None:
-        wave = self.db.query(Wave).filter(Wave.id == wave_id).first()
+    def add_track_to_wave(self, wave_id: str, user_id: str, track_data: dict) -> WaveTrack | None:
+        wave = self.db.query(Wave).filter(Wave.id == wave_id, Wave.user_id == user_id).first()
         if not wave:
             return None
         pos = len(wave.tracks)
         wt = WaveTrack(
-            wave_id=wave_id, track_id=_sanitize(str(track_data.get("id", "")), 200),
-            source=_sanitize(str(track_data.get("source", "local")), 50),
-            title=_sanitize(str(track_data.get("name", track_data.get("title", "Unknown"))), 500),
-            artist=_sanitize(str(track_data.get("artist", "Unknown")), 500),
-            album=_sanitize(str(track_data.get("album") or ""), 500),
+            wave_id=wave_id, track_id=sanitize_track_id(str(track_data.get("id", ""))),
+            source=validate_source(str(track_data.get("source", "local"))),
+            title=_sanitize(str(track_data.get("name", track_data.get("title", "Unknown"))), _MAX_FIELD_LEN),
+            artist=_sanitize(str(track_data.get("artist", "Unknown")), _MAX_FIELD_LEN),
+            album=_sanitize(str(track_data.get("album") or ""), _MAX_FIELD_LEN),
             cover_url=track_data.get("cover_url"),
             preview_url=track_data.get("preview_url"),
             duration_ms=track_data.get("duration_ms"),
@@ -151,7 +167,10 @@ class SocialService:
         self.db.refresh(wt)
         return wt
 
-    def get_wave_tracks(self, wave_id: str) -> list[dict]:
+    def get_wave_tracks(self, wave_id: str, requesting_user_id: str) -> list[dict]:
+        wave = self.db.query(Wave).filter(Wave.id == wave_id).first()
+        if not wave or wave.user_id != requesting_user_id:
+            return []
         tracks = (
             self.db.query(WaveTrack)
             .filter(WaveTrack.wave_id == wave_id)
@@ -171,7 +190,11 @@ class SocialService:
             return True
         return False
 
-    def remove_track_from_wave(self, wave_id: str, track_id: str) -> bool:
+    def remove_track_from_wave(self, wave_id: str, track_id: str, user_id: str) -> bool:
+        wave = self.db.query(Wave).filter(Wave.id == wave_id, Wave.user_id == user_id).first()
+        if not wave:
+            return False
+        track_id = sanitize_track_id(track_id)
         wt = self.db.query(WaveTrack).filter(WaveTrack.wave_id == wave_id, WaveTrack.track_id == track_id).first()
         if wt:
             self.db.delete(wt)

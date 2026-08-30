@@ -47,7 +47,7 @@ class TelegramMusicImporter:
         return tracks
 
     def import_from_url(self, url: str) -> list[Track]:
-        match = re.match(r"https?://t\.me/([^/?]+)", url)
+        match = re.match(r"https?://t\.me/([a-zA-Z0-9_]{1,64})", url)
         if not match:
             return []
         try:

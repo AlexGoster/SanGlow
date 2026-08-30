@@ -37,3 +37,4 @@ icon3.png
 convert_icon.py
 run_test.py
 data/
+*.key
