@@ -13,11 +13,11 @@
   <img src="https://img.shields.io/badge/PyQt6-GUI-41CD52?style=flat-square&logo=qt&logoColor=white">
   <img src="https://img.shields.io/badge/Spotify-1DB954?style=flat-square&logo=spotify&logoColor=white">
   <img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square">
-  <img src="https://img.shields.io/github/v/release/yourusername/sanglow?style=flat-square&color=e8734a">
+  <img src="https://img.shields.io/github/v/release/AlexGoster/sanglow?style=flat-square&color=e8734a">
 </p>
 
 <p align="center">
-  <a href="https://github.com/yourusername/sanglow/releases/latest">
+  <a href="https://github.com/AlexGoster/sanglow/releases/latest">
     <img src="https://img.shields.io/badge/Download-Latest_Release-e8734a?style=for-the-badge&logo=github&logoColor=white">
   </a>
 </p>
@@ -60,7 +60,7 @@
 
 ## Установка
 
-Перейди в раздел [**Releases**](https://github.com/yourusername/sanglow/releases/latest) и скачай файл для своей ОС:
+Перейди в раздел [**Releases**](https://github.com/AlexGoster/sanglow/releases/latest) и скачай файл для своей ОС:
 
 | ОС | Файл | Установка |
 |----|------|-----------|
@@ -114,4 +114,4 @@ SanGlow/
 
 ## Лицензия
 
-[MIT License](LICENSE) — 2024-2026 Sanek
+[MIT License](LICENSE) — 2026 AlexGoster

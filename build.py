@@ -42,11 +42,6 @@ def build(arch: str = "auto") -> None:
         "--collect-submodules=PyQt6",
     ]
 
-    if arch == "x86":
-        args.append("--arch=32bit")
-    elif arch == "x64":
-        args.append("--arch=64bit")
-
     if icon_path.exists():
         args.append(f"--icon={icon_path}")
 
@@ -110,21 +105,33 @@ def create_installer(arch: str = "auto") -> str:
         print("Inno Setup not found!", file=sys.stderr)
         return ""
 
-    import subprocess
-    result = subprocess.run(
-        [iscc, str(project_root / "installer.iss")],
-        cwd=str(project_root),
-        capture_output=True, text=True,
-    )
-    if result.returncode == 0:
-        installer_path = project_root / "installer_output" / "sanglow_setup.exe"
-        renamed = project_root / "installer_output" / f"sanglow_setup_{arch}.exe"
-        if installer_path.exists():
-            installer_path.rename(renamed)
-            print(f"Installer: {renamed}")
-            return str(renamed)
-    else:
-        print(f"Installer failed: {result.stderr}", file=sys.stderr)
+    symlink = project_root / "dist" / "SanGlow"
+    if symlink.exists():
+        if symlink.is_symlink():
+            symlink.unlink()
+        else:
+            shutil.rmtree(symlink)
+    os.symlink(str(dist_dir.resolve()), str(symlink), target_is_directory=True)
+
+    try:
+        import subprocess
+        result = subprocess.run(
+            [iscc, str(project_root / "installer.iss")],
+            cwd=str(project_root),
+            capture_output=True, text=True,
+        )
+        if result.returncode == 0:
+            installer_path = project_root / "installer_output" / "sanglow_setup.exe"
+            renamed = project_root / "installer_output" / f"sanglow_setup_{arch}.exe"
+            if installer_path.exists():
+                installer_path.rename(renamed)
+                print(f"Installer: {renamed}")
+                return str(renamed)
+        else:
+            print(f"Installer failed: {result.stderr}", file=sys.stderr)
+    finally:
+        if symlink.exists() and symlink.is_symlink():
+            symlink.unlink()
     return ""
 
 
