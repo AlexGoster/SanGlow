@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 import threading
 import time
@@ -10,6 +11,8 @@ from sqlalchemy.orm import Session
 from src.models.user import User
 from src.utils.validators import sanitize_display_name
 from .jwt_handler import JWTHandler
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -24,6 +27,13 @@ class AuthResult:
 _login_attempts: dict[str, list[float]] = {}
 _login_lock = threading.Lock()
 
+COMMON_PASSWORDS = {
+    "password", "123456", "12345678", "qwerty", "abc123", "monkey", "master",
+    "dragon", "login", "princess", "football", "shadow", "sunshine", "trustno1",
+    "iloveyou", "batman", "access", "hello", "charlie", "letmein", "welcome",
+    "password1", "admin", "passw0rd", "p@ssword", "p@ssw0rd",
+}
+
 
 class AuthService:
     def __init__(self, db: Session) -> None:
@@ -36,7 +46,11 @@ class AuthService:
         if not self._validate_email(email):
             return AuthResult(success=False, error="Invalid email format")
         if not self._validate_password(password):
-            return AuthResult(success=False, error="Password must be 8+ chars with upper, lower, digit and special char")
+            return AuthResult(success=False, error="Password must be 8+ chars with upper, lower, digit and special char, not common")
+        if password.lower() in COMMON_PASSWORDS:
+            return AuthResult(success=False, error="Password is too common")
+        if password.lower().startswith(username.lower()):
+            return AuthResult(success=False, error="Password cannot start with username")
         if self.db.query(User).filter(User.username == username).first():
             return AuthResult(success=False, error="Username already taken")
         if self.db.query(User).filter(User.email == email).first():
@@ -49,6 +63,7 @@ class AuthService:
         self.db.commit()
         self.db.refresh(user)
 
+        logger.info("User registered: %s", username)
         return AuthResult(success=True, user=user, access_token=self.jwt_handler.create_access_token(user.id), refresh_token=self.jwt_handler.create_refresh_token(user.id))
 
     def login(self, username_or_email: str, password: str) -> AuthResult:
@@ -62,6 +77,7 @@ class AuthService:
                 _login_attempts[key] = [t for t in _login_attempts[key] if now - t < cfg.lockout_minutes * 60]
                 if len(_login_attempts[key]) >= cfg.max_login_attempts:
                     remaining = int(cfg.lockout_minutes * 60 - (now - _login_attempts[key][0]))
+                    logger.warning("Login lockout for: %s, %d seconds remaining", key, remaining)
                     return AuthResult(success=False, error=f"Too many attempts. Try again in {remaining // 60}m {remaining % 60}s")
 
         user = self.db.query(User).filter((User.username == username_or_email) | (User.email == username_or_email)).first()
@@ -69,6 +85,7 @@ class AuthService:
             with _login_lock:
                 _login_attempts.setdefault(key, []).append(now)
                 attempts_left = cfg.max_login_attempts - len(_login_attempts.get(key, []))
+            logger.warning("Failed login for: %s, %d attempts left", key, attempts_left)
             return AuthResult(success=False, error=f"Invalid credentials ({attempts_left} attempts left)")
 
         with _login_lock:
@@ -76,6 +93,8 @@ class AuthService:
 
         if not user.is_active:
             return AuthResult(success=False, error="Account is deactivated")
+
+        logger.info("Successful login: %s", username_or_email)
         return AuthResult(success=True, user=user, access_token=self.jwt_handler.create_access_token(user.id), refresh_token=self.jwt_handler.create_refresh_token(user.id))
 
     def get_current_user(self, token: str) -> User | None:
@@ -91,6 +110,10 @@ class AuthService:
         return bool(re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", email))
 
     def _validate_password(self, password: str) -> bool:
-        return (len(password) >= 8 and bool(re.search(r"[A-Z]", password))
+        from config.settings import get_security_config
+        cfg = get_security_config()
+        if len(password) > cfg.max_password_length:
+            return False
+        return (len(password) >= 10 and bool(re.search(r"[A-Z]", password))
                 and bool(re.search(r"[a-z]", password)) and bool(re.search(r"\d", password))
                 and bool(re.search(r"[!@#$%^&*(),.?\":{}|<>]", password)))

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import secrets
 import sys
@@ -9,6 +10,7 @@ from functools import lru_cache
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings
 
+logger = logging.getLogger(__name__)
 
 if getattr(sys, "frozen", False):
     BASE_DIR = Path(sys.executable).parent
@@ -23,7 +25,7 @@ class SpotifyConfig(BaseSettings):
     client_id: str = Field(default="", alias="SPOTIFY_CLIENT_ID")
     client_secret: SecretStr = Field(default=SecretStr(""), alias="SPOTIFY_CLIENT_SECRET")
     redirect_uri: str = Field(
-        default="http://127.0.0.1:8888/callback", alias="SPOTIFY_REDIRECT_URI"
+        default="http://127.0.0.1:0/callback", alias="SPOTIFY_REDIRECT_URI"
     )
     scope: str = (
         "user-read-private user-read-email user-library-read "
@@ -44,14 +46,22 @@ class ZvukConfig(BaseSettings):
 def _generate_or_validate_key(env_var: str, label: str) -> str:
     val = os.environ.get(env_var, "")
     if not val or "change-in-production" in val:
-        key_file = BASE_DIR / "data" / f"{env_var.lower()}.key"
+        key_file = DATA_DIR / f"{env_var.lower()}.key"
         if key_file.exists():
             val = key_file.read_text().strip()
-        else:
+            if len(val) < 32:
+                logger.warning("Key too short, regenerating: %s", label)
+                val = ""
+        if not val:
             val = secrets.token_urlsafe(64)
-            key_file.parent.mkdir(parents=True, exist_ok=True)
+            DATA_DIR.mkdir(parents=True, exist_ok=True)
             key_file.write_text(val)
-            os.chmod(key_file, 0o600)
+            try:
+                os.chmod(key_file, 0o600)
+            except (OSError, PermissionError):
+                pass
+    if len(val) < 32:
+        raise ValueError(f"Key for {label} is too short (min 32 chars)")
     return val
 
 
@@ -59,10 +69,13 @@ class SecurityConfig(BaseSettings):
     jwt_secret_key: SecretStr = Field(default=SecretStr(""), alias="JWT_SECRET_KEY")
     encryption_key: SecretStr = Field(default=SecretStr(""), alias="ENCRYPTION_KEY")
     jwt_algorithm: str = "HS256"
-    token_expire_minutes: int = 60 * 24
-    bcrypt_rounds: int = 12
+    token_expire_minutes: int = 15
+    refresh_expire_days: int = 7
+    bcrypt_rounds: int = 14
     max_login_attempts: int = 5
     lockout_minutes: int = 15
+    max_password_length: int = 128
+    session_timeout_minutes: int = 30
 
     model_config = {"env_prefix": "", "extra": "ignore"}
 
