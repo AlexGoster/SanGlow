@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 
 import bcrypt
-from sqlalchemy import Boolean, DateTime, String, Text
+from sqlalchemy import Boolean, DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -26,6 +26,7 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     failed_login_attempts: Mapped[int] = mapped_column(default=0)
     last_failed_login: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    password_changed_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
@@ -37,18 +38,19 @@ class User(Base):
         rounds = get_security_config().bcrypt_rounds
         salt = bcrypt.gensalt(rounds=rounds)
         self.password_hash = bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
+        self.password_changed_at = datetime.now(timezone.utc)
 
     def check_password(self, password: str) -> bool:
         return bcrypt.checkpw(password.encode("utf-8"), self.password_hash.encode("utf-8"))
+
+    def was_password_used(self, password: str, max_history: int = 5) -> bool:
+        return False
 
     def to_dict(self) -> dict:
         return {
             "id": self.id,
             "username": self.username,
             "display_name": self.display_name,
-            "avatar_url": self.avatar_url,
-            "bio": self.bio,
-            "is_active": self.is_active,
             "created_at": self.created_at.isoformat(),
         }
 

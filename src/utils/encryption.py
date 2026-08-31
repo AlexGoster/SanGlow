@@ -20,10 +20,18 @@ class EncryptionManager:
         salt_file = BASE_DIR / "data" / ".enc_salt"
         salt_file.parent.mkdir(parents=True, exist_ok=True)
         if salt_file.exists():
+            try:
+                os.chmod(salt_file, 0o600)
+            except (OSError, PermissionError):
+                pass
             salt = salt_file.read_bytes()
             if len(salt) < 16:
                 salt = os.urandom(16)
                 salt_file.write_bytes(salt)
+                try:
+                    os.chmod(salt_file, 0o600)
+                except (OSError, PermissionError):
+                    pass
         else:
             salt = os.urandom(16)
             salt_file.write_bytes(salt)

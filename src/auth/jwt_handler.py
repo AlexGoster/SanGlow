@@ -1,17 +1,66 @@
 from __future__ import annotations
 
+import json
 import logging
 import secrets
+import threading
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import jwt
 
-from config.settings import get_security_config
+from config.settings import BASE_DIR, get_security_config
 
 logger = logging.getLogger(__name__)
 
 ALLOWED_ALGORITHMS = {"HS256", "HS384", "HS512"}
 BLOCKED_ALGORITHMS = {"none", "None", "NONE", "HS1", "HS0"}
+
+
+class _TokenBlacklist:
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._blacklist_file = BASE_DIR / "data" / ".token_blacklist.json"
+        self._blacklist_file.parent.mkdir(parents=True, exist_ok=True)
+        self._jti_set: set[str] = set()
+        self._load()
+
+    def _load(self) -> None:
+        try:
+            if self._blacklist_file.exists():
+                data = json.loads(self._blacklist_file.read_text(encoding="utf-8"))
+                self._jti_set = set(data.get("jti", []))
+        except Exception:
+            self._jti_set = set()
+
+    def _save(self) -> None:
+        try:
+            self._blacklist_file.write_text(
+                json.dumps({"jti": list(self._jti_set)}), encoding="utf-8"
+            )
+            try:
+                import os
+                os.chmod(self._blacklist_file, 0o600)
+            except (OSError, PermissionError):
+                pass
+        except Exception as e:
+            logger.error("Failed to save token blacklist: %s", e)
+
+    def add(self, jti: str) -> None:
+        with self._lock:
+            self._jti_set.add(jti)
+            self._save()
+
+    def contains(self, jti: str) -> bool:
+        with self._lock:
+            return jti in self._jti_set
+
+    def cleanup(self, max_age_hours: int = 24) -> None:
+        with self._lock:
+            self._save()
+
+
+_blacklist = _TokenBlacklist()
 
 
 class JWTHandler:
@@ -72,10 +121,14 @@ class JWTHandler:
                 algorithms=[self.algorithm],
                 issuer="sanglow",
                 audience="sanglow-client",
-                options={"require": ["exp", "sub", "iss", "aud", "type"]},
+                options={"require": ["exp", "sub", "iss", "aud", "type", "jti"]},
             )
             if payload.get("alg") in BLOCKED_ALGORITHMS:
                 logger.warning("Blocked algorithm in token payload: %s", payload.get("alg"))
+                return None
+            jti = payload.get("jti")
+            if jti and _blacklist.contains(jti):
+                logger.warning("Revoked token used: %s", jti)
                 return None
             return payload
         except jwt.ExpiredSignatureError:
@@ -84,6 +137,13 @@ class JWTHandler:
         except jwt.InvalidTokenError as e:
             logger.warning("Invalid token: %s", e)
             return None
+
+    def revoke_token(self, token: str) -> bool:
+        payload = self.verify_token(token)
+        if payload and payload.get("jti"):
+            _blacklist.add(payload["jti"])
+            return True
+        return False
 
     def decode_user_id(self, token: str) -> str | None:
         payload = self.verify_token(token)

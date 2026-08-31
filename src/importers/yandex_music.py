@@ -30,7 +30,7 @@ class YandexMusicImporter:
         headers = {"User-Agent": "Yandex-Music-API", "Accept": "application/json"}
         if auth_token:
             headers["Authorization"] = f"OAuth {auth_token}"
-        self._client = httpx.Client(headers=headers, follow_redirects=True)
+        self._client = httpx.Client(headers=headers, follow_redirects=True, timeout=30)
 
     def search(self, query: str, limit: int = 20) -> list[Track]:
         try:

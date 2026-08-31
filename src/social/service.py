@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -16,6 +18,29 @@ logger = logging.getLogger(__name__)
 _MAX_COMMENT_LEN = 2000
 _MAX_NAME_LEN = 100
 _MAX_FIELD_LEN = 500
+
+_action_timestamps: dict[str, list[float]] = {}
+_action_lock = threading.Lock()
+_RATE_LIMITS = {
+    "comment": (10, 60),
+    "like": (30, 60),
+    "wave": (5, 300),
+    "favorite": (20, 60),
+}
+
+
+def _check_rate_limit(user_id: str, action: str) -> bool:
+    max_count, window = _RATE_LIMITS.get(action, (30, 60))
+    key = f"{user_id}:{action}"
+    now = time.time()
+    with _action_lock:
+        if key not in _action_timestamps:
+            _action_timestamps[key] = []
+        _action_timestamps[key] = [t for t in _action_timestamps[key] if now - t < window]
+        if len(_action_timestamps[key]) >= max_count:
+            return False
+        _action_timestamps[key].append(now)
+    return True
 
 
 def _sanitize(text: str, max_len: int = _MAX_COMMENT_LEN) -> str:
@@ -33,6 +58,8 @@ class SocialService:
     db: Session
 
     def add_comment(self, user_id: str, track_id: str, text: str, source: str = "local") -> Comment:
+        if not _check_rate_limit(user_id, "comment"):
+            raise ValueError("Rate limit exceeded. Please wait before posting more comments.")
         text = _sanitize(text, _MAX_COMMENT_LEN)
         if not text:
             raise ValueError("Comment cannot be empty")
@@ -64,6 +91,8 @@ class SocialService:
         return False
 
     def toggle_like(self, user_id: str, track_id: str, source: str = "local") -> bool:
+        if not _check_rate_limit(user_id, "like"):
+            raise ValueError("Rate limit exceeded. Please wait before liking more tracks.")
         source = validate_source(source)
         track_id = sanitize_track_id(track_id)
         existing = self.db.query(Like).filter(Like.user_id == user_id, Like.track_id == track_id).first()
@@ -85,6 +114,8 @@ class SocialService:
         return self.db.query(Like).filter(Like.track_id == track_id).count()
 
     def add_favorite(self, user_id: str, track_data: dict) -> Favorite | None:
+        if not _check_rate_limit(user_id, "favorite"):
+            raise ValueError("Rate limit exceeded. Please wait before adding more favorites.")
         track_id = sanitize_track_id(str(track_data.get("id", "")))
         existing = self.db.query(Favorite).filter(
             Favorite.user_id == user_id, Favorite.track_id == track_id
@@ -132,6 +163,8 @@ class SocialService:
                  "duration_ms": f.duration_ms, "source": f.source} for f in favs]
 
     def create_wave(self, user_id: str, name: str, description: str = "") -> Wave:
+        if not _check_rate_limit(user_id, "wave"):
+            raise ValueError("Rate limit exceeded. Please wait before creating more waves.")
         name = _sanitize_name(name, _MAX_NAME_LEN)
         description = _sanitize(description, 500)
         if not name:
