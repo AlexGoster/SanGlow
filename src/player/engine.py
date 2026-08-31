@@ -22,6 +22,7 @@ class AudioWorker(QObject):
     error = pyqtSignal(str)
 
     ALLOWED_DOMAINS = ("spotify.com", "scdn.co", "soundcloud.com", "sndcdn.com", "ytimg.com", "youtube.com")
+    BLOCKED_HOSTS = ("localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]")
     MAX_FILE_SIZE = 50 * 1024 * 1024
 
     def __init__(self, url: str, temp_path: str) -> None:
@@ -34,7 +35,11 @@ class AudioWorker(QObject):
             parsed = urlparse(url)
             if parsed.scheme not in ("https",):
                 return False
-            return any(parsed.hostname and parsed.hostname.endswith(d) for d in self.ALLOWED_DOMAINS)
+            if not parsed.hostname:
+                return False
+            if parsed.hostname.lower() in self.BLOCKED_HOSTS:
+                return False
+            return any(parsed.hostname.endswith(d) for d in self.ALLOWED_DOMAINS)
         except Exception:
             return False
 

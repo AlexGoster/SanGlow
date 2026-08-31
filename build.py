@@ -25,6 +25,7 @@ def build(arch: str = "auto") -> None:
         "--noconsole",
         "--noconfirm",
         "--clean",
+        "--strip",
         f"--distpath={project_root / 'dist'}",
         f"--workpath={project_root / 'build'}",
         f"--specpath={project_root}",
@@ -40,6 +41,16 @@ def build(arch: str = "auto") -> None:
         "--hidden-import=PyQt6.QtCore",
         "--hidden-import=PyQt6.QtGui",
         "--collect-submodules=PyQt6",
+        "--exclude-module=tkinter",
+        "--exclude-module=matplotlib",
+        "--exclude-module=numpy",
+        "--exclude-module=pandas",
+        "--exclude-module=PIL",
+        "--exclude-module=test",
+        "--exclude-module=unittest",
+        "--exclude-module=xmlrpc",
+        "--exclude-module=pydoc",
+        "--exclude-module=doctest",
     ]
 
     if icon_path.exists():
@@ -116,7 +127,7 @@ def create_installer(arch: str = "auto") -> str:
     try:
         import subprocess
         result = subprocess.run(
-            [iscc, str(project_root / "installer.iss")],
+            [iscc, "/DArchitecture=" + arch, str(project_root / "installer.iss")],
             cwd=str(project_root),
             capture_output=True, text=True,
         )

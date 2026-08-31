@@ -46,7 +46,7 @@ class AuthService:
         if not self._validate_email(email):
             return AuthResult(success=False, error="Invalid email format")
         if not self._validate_password(password):
-            return AuthResult(success=False, error="Password must be 8+ chars with upper, lower, digit and special char, not common")
+            return AuthResult(success=False, error="Password must be 10+ chars with upper, lower, digit and special char, not common")
         if password.lower() in COMMON_PASSWORDS:
             return AuthResult(success=False, error="Password is too common")
         if password.lower().startswith(username.lower()):
@@ -96,6 +96,23 @@ class AuthService:
 
         logger.info("Successful login: %s", username_or_email)
         return AuthResult(success=True, user=user, access_token=self.jwt_handler.create_access_token(user.id), refresh_token=self.jwt_handler.create_refresh_token(user.id))
+
+    def change_password(self, user_id: str, current_password: str, new_password: str) -> AuthResult:
+        user = self.db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return AuthResult(success=False, error="User not found")
+        if not user.check_password(current_password):
+            return AuthResult(success=False, error="Current password is incorrect")
+        if current_password == new_password:
+            return AuthResult(success=False, error="New password must be different from current")
+        if not self._validate_password(new_password):
+            return AuthResult(success=False, error="Password must be 10+ chars with upper, lower, digit and special char")
+        if new_password.lower() in COMMON_PASSWORDS:
+            return AuthResult(success=False, error="Password is too common")
+        user.set_password(new_password)
+        self.db.commit()
+        logger.info("Password changed for user: %s", user.username)
+        return AuthResult(success=True, user=user)
 
     def get_current_user(self, token: str) -> User | None:
         user_id = self.jwt_handler.decode_user_id(token)

@@ -4,6 +4,7 @@ import os
 import re
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 
@@ -25,10 +26,22 @@ class Track:
 
 class SoundCloudImporter:
     BASE_URL = "https://api-v2.soundcloud.com"
+    ALLOWED_DOMAINS = ("soundcloud.com", "sndcdn.com")
 
     def __init__(self) -> None:
         self._client_id = os.environ.get("SOUNDCLOUD_CLIENT_ID", "")
-        self._client = httpx.Client(headers={"User-Agent": "Mozilla/5.0"}, follow_redirects=True)
+        self._client = httpx.Client(headers={"User-Agent": "Mozilla/5.0"}, follow_redirects=True, timeout=30)
+
+    def _is_valid_soundcloud_url(self, url: str) -> bool:
+        try:
+            parsed = urlparse(url)
+            if parsed.scheme not in ("https",):
+                return False
+            if not parsed.hostname:
+                return False
+            return any(parsed.hostname.endswith(d) for d in self.ALLOWED_DOMAINS)
+        except Exception:
+            return False
 
     def search(self, query: str, limit: int = 20) -> list[Track]:
         if not self._client_id:
@@ -43,7 +56,7 @@ class SoundCloudImporter:
     def import_from_url(self, url: str) -> list[Track]:
         if not self._client_id:
             return []
-        if not re.match(r"^https?://(www\.)?soundcloud\.com/", url):
+        if not self._is_valid_soundcloud_url(url):
             return []
         try:
             response = self._client.get("https://api.soundcloud.com/resolve", params={"url": url, "client_id": self._client_id})

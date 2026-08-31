@@ -45,11 +45,16 @@ class SpotifyAuth:
         config = get_spotify_config()
         cache_dir = Path.home() / ".config" / "sanglow"
         cache_dir.mkdir(parents=True, exist_ok=True)
-        cache_path = str(cache_dir / ".spotify_cache")
         try:
-            os.chmod(cache_path, 0o600)
+            os.chmod(str(cache_dir), 0o700)
         except (OSError, PermissionError):
             pass
+        cache_path = str(cache_dir / ".spotify_cache")
+        if os.path.exists(cache_path):
+            try:
+                os.chmod(cache_path, 0o600)
+            except (OSError, PermissionError):
+                pass
         self._auth_manager = SpotifyOAuth(
             client_id=config.client_id,
             client_secret=config.client_secret.get_secret_value(),

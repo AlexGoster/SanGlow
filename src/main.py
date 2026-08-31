@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import logging
 import sys
 from pathlib import Path
 
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtWidgets import QApplication, QMessageBox
 from PyQt6.QtGui import QFont, QIcon
 
 from src.models.database import init_db
@@ -13,9 +14,21 @@ from src.ui.main_window import MainWindow
 from src.spotify.auth import SpotifyAuth
 from src.spotify.client import SpotifyClient
 
+logger = logging.getLogger(__name__)
+
 
 def main() -> None:
-    init_db()
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        handlers=[logging.StreamHandler()],
+    )
+
+    try:
+        init_db()
+    except Exception as e:
+        logger.critical("Database initialization failed: %s", e)
+        sys.exit(1)
 
     app = QApplication(sys.argv)
     app.setApplicationName("SanGlow")
@@ -57,4 +70,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        logger.critical("Fatal error: %s", e, exc_info=True)
+        sys.exit(1)

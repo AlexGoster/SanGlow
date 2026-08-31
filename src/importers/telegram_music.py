@@ -22,7 +22,7 @@ class Track:
 
 class TelegramMusicImporter:
     def __init__(self) -> None:
-        self._client = httpx.Client(headers={"User-Agent": "Mozilla/5.0"}, follow_redirects=True)
+        self._client = httpx.Client(headers={"User-Agent": "Mozilla/5.0"}, follow_redirects=True, timeout=30)
 
     def search_public_channels(self, query: str, limit: int = 20) -> list[Track]:
         tracks = []
