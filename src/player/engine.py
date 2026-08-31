@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import atexit
 import logging
+import os
 import re
+import shutil
 import tempfile
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 import pygame
@@ -18,6 +22,7 @@ class AudioWorker(QObject):
     error = pyqtSignal(str)
 
     ALLOWED_DOMAINS = ("spotify.com", "scdn.co", "soundcloud.com", "sndcdn.com", "ytimg.com", "youtube.com")
+    MAX_FILE_SIZE = 50 * 1024 * 1024
 
     def __init__(self, url: str, temp_path: str) -> None:
         super().__init__()
@@ -25,22 +30,33 @@ class AudioWorker(QObject):
         self.temp_path = temp_path
 
     def _is_allowed_url(self, url: str) -> bool:
-        from urllib.parse import urlparse
         try:
             parsed = urlparse(url)
+            if parsed.scheme not in ("https",):
+                return False
             return any(parsed.hostname and parsed.hostname.endswith(d) for d in self.ALLOWED_DOMAINS)
         except Exception:
             return False
 
     def run(self) -> None:
         if not self._is_allowed_url(self.url):
-            self.error.emit("URL not from allowed domain")
+            self.error.emit("URL not from allowed domain or not HTTPS")
             return
         try:
-            with httpx.stream("GET", self.url, follow_redirects=True, timeout=30) as response:
+            with httpx.stream("GET", self.url, follow_redirects=True, timeout=30, verify=True) as response:
                 response.raise_for_status()
+                content_length = response.headers.get("content-length")
+                if content_length and int(content_length) > self.MAX_FILE_SIZE:
+                    self.error.emit("File too large")
+                    return
+                downloaded = 0
                 with open(self.temp_path, "wb") as f:
                     for chunk in response.iter_bytes(chunk_size=8192):
+                        downloaded += len(chunk)
+                        if downloaded > self.MAX_FILE_SIZE:
+                            self.error.emit("File too large")
+                            os.unlink(self.temp_path)
+                            return
                         f.write(chunk)
             self.finished.emit()
         except Exception as e:
@@ -63,8 +79,13 @@ class MusicPlayer(QObject):
         self._volume = 0.7
         self._speed = 1.0
         self._temp_dir = Path(tempfile.mkdtemp(prefix="sanglow_"))
+        try:
+            os.chmod(self._temp_dir, 0o700)
+        except (OSError, PermissionError):
+            pass
         self._current_file: Path | None = None
         self._active_threads: list[QThread] = []
+        atexit.register(self.cleanup)
 
     @property
     def is_playing(self) -> bool:
@@ -127,7 +148,13 @@ class MusicPlayer(QObject):
             self._active_threads.remove(thread)
 
     def _play_file(self, file_path: Path) -> None:
+        if not file_path.exists():
+            return
         try:
+            file_size = file_path.stat().st_size
+            if file_size > 50 * 1024 * 1024:
+                logger.warning("File too large to play: %s bytes", file_size)
+                return
             pygame.mixer.music.load(str(file_path))
             pygame.mixer.music.set_volume(self._volume)
             if self._speed != 1.0:
@@ -171,9 +198,14 @@ class MusicPlayer(QObject):
     def cleanup(self) -> None:
         self.stop()
         for t in self._active_threads[:]:
-            t.quit()
-            t.wait(1000)
+            try:
+                t.quit()
+                t.wait(1000)
+            except Exception:
+                pass
         self._active_threads.clear()
         pygame.mixer.quit()
-        import shutil
-        shutil.rmtree(self._temp_dir, ignore_errors=True)
+        try:
+            shutil.rmtree(self._temp_dir, ignore_errors=True)
+        except Exception:
+            pass
