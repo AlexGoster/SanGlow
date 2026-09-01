@@ -120,13 +120,13 @@ def create_installer(arch: str = "auto") -> str:
         print("Inno Setup not found!", file=sys.stderr)
         return ""
 
-    symlink = project_root / "dist" / "SanGlow"
-    if symlink.exists():
-        if symlink.is_symlink():
-            symlink.unlink()
+    target = project_root / "dist" / "SanGlow"
+    if target.exists():
+        if target.is_symlink():
+            target.unlink()
         else:
-            shutil.rmtree(symlink)
-    os.symlink(str(dist_dir.resolve()), str(symlink), target_is_directory=True)
+            shutil.rmtree(target)
+    shutil.copytree(str(dist_dir.resolve()), str(target))
 
     try:
         import subprocess
@@ -145,8 +145,11 @@ def create_installer(arch: str = "auto") -> str:
         else:
             print(f"Installer failed: {result.stderr}", file=sys.stderr)
     finally:
-        if symlink.exists() and symlink.is_symlink():
-            symlink.unlink()
+        if target.exists():
+            if target.is_symlink():
+                target.unlink()
+            else:
+                shutil.rmtree(target)
     return ""
 
 
