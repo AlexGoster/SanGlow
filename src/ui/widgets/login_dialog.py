@@ -3,6 +3,7 @@ from __future__ import annotations
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QLabel, QLineEdit,
     QPushButton, QStackedWidget, QWidget, QFrame,
+    QScrollArea,
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 
@@ -111,7 +112,16 @@ class LoginDialog(QDialog):
 
     def _create_register_page(self) -> QWidget:
         page = QWidget()
-        layout = QVBoxLayout(page)
+        outer_layout = QVBoxLayout(page)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+
+        inner = QWidget()
+        layout = QVBoxLayout(inner)
         layout.setSpacing(8)
 
         title = QLabel("Create account")
@@ -181,6 +191,11 @@ class LoginDialog(QDialog):
         login_link.setFixedHeight(40)
         login_link.clicked.connect(lambda: self._stack.setCurrentIndex(0))
         layout.addWidget(login_link)
+
+        layout.addStretch()
+
+        scroll.setWidget(inner)
+        outer_layout.addWidget(scroll)
 
         return page
 
