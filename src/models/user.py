@@ -43,6 +43,19 @@ class User(Base):
     def check_password(self, password: str) -> bool:
         return bcrypt.checkpw(password.encode("utf-8"), self.password_hash.encode("utf-8"))
 
+    def set_spotify_tokens(self, access_token: str | None, refresh_token: str | None) -> None:
+        from src.utils.encryption import EncryptionManager
+        enc = EncryptionManager()
+        self.spotify_access_token = enc.encrypt(access_token) if access_token else None
+        self.spotify_refresh_token = enc.encrypt(refresh_token) if refresh_token else None
+
+    def get_spotify_tokens(self) -> tuple[str | None, str | None]:
+        from src.utils.encryption import EncryptionManager
+        enc = EncryptionManager()
+        access = enc.decrypt(self.spotify_access_token) if self.spotify_access_token else None
+        refresh = enc.decrypt(self.spotify_refresh_token) if self.spotify_refresh_token else None
+        return access, refresh
+
     def was_password_used(self, password: str, max_history: int = 5) -> bool:
         return False
 

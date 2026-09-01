@@ -11,6 +11,7 @@ def build(arch: str = "auto") -> None:
     project_root = Path(__file__).parent
     src_dir = project_root / "src"
     icon_path = project_root / "assets" / "icon.ico"
+    manifest_path = project_root / "assets" / "app.manifest"
 
     if arch == "auto":
         arch = "x64" if platform.machine().endswith("64") else "x86"
@@ -25,7 +26,6 @@ def build(arch: str = "auto") -> None:
         "--noconsole",
         "--noconfirm",
         "--clean",
-        "--strip",
         f"--distpath={project_root / 'dist'}",
         f"--workpath={project_root / 'build'}",
         f"--specpath={project_root}",
@@ -51,10 +51,14 @@ def build(arch: str = "auto") -> None:
         "--exclude-module=xmlrpc",
         "--exclude-module=pydoc",
         "--exclude-module=doctest",
+        "--version-file=version_info.txt",
     ]
 
     if icon_path.exists():
         args.append(f"--icon={icon_path}")
+
+    if manifest_path.exists():
+        args.append(f"--manifest={manifest_path}")
 
     print(f"Building SanGlow ({arch})...")
     PyInstaller.__main__.run(args)
