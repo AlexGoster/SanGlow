@@ -29,6 +29,7 @@ class AuthResult:
 
 
 _login_attempts: dict[str, list[float]] = {}
+_verify_attempts: dict[str, list[float]] = {}
 _login_lock = threading.Lock()
 
 COMMON_PASSWORDS = {
@@ -119,13 +120,31 @@ class AuthService:
         return AuthResult(success=True, user=user, access_token=self.jwt_handler.create_access_token(user.id), refresh_token=self.jwt_handler.create_refresh_token(user.id))
 
     def verify_email(self, username: str, code: str) -> AuthResult:
+        from config.settings import get_security_config
+        cfg = get_security_config()
+
+        key = f"verify:{username.lower()}"
+        now = time.time()
+        with _login_lock:
+            if key in _verify_attempts:
+                _verify_attempts[key] = [t for t in _verify_attempts[key] if now - t < cfg.lockout_minutes * 60]
+                if len(_verify_attempts[key]) >= cfg.max_login_attempts:
+                    remaining = int(cfg.lockout_minutes * 60 - (now - _verify_attempts[key][0]))
+                    return AuthResult(success=False, error=f"Too many attempts. Try again in {remaining // 60}m {remaining % 60}s")
+
         user = self.db.query(User).filter(User.username == username).first()
         if not user:
             return AuthResult(success=False, error="User not found")
         if user.email_verified:
             return AuthResult(success=True, user=user)
         if not verify_code(user.verification_code, user.verification_expires, code):
+            with _login_lock:
+                _verify_attempts.setdefault(key, []).append(now)
             return AuthResult(success=False, error="Invalid or expired verification code")
+
+        with _login_lock:
+            _verify_attempts.pop(key, None)
+
         user.email_verified = True
         user.verification_code = None
         user.verification_expires = None

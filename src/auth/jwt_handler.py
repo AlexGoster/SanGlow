@@ -24,6 +24,7 @@ class _TokenBlacklist:
         self._blacklist_file.parent.mkdir(parents=True, exist_ok=True)
         self._jti_set: set[str] = set()
         self._load()
+        self.cleanup(max_age_hours=24)
 
     def _load(self) -> None:
         try:
@@ -39,13 +40,22 @@ class _TokenBlacklist:
 
     def _save(self) -> None:
         try:
+            import os
+            import tempfile
             now = datetime.now(timezone.utc).timestamp()
             entries = [{"j": jti, "t": now} for jti in self._jti_set]
-            self._blacklist_file.write_text(
-                json.dumps({"entries": entries}), encoding="utf-8"
-            )
+            tmp_fd, tmp_path = tempfile.mkstemp(dir=self._blacklist_file.parent, suffix=".tmp")
             try:
-                import os
+                with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
+                    json.dump({"entries": entries}, f)
+                os.replace(tmp_path, self._blacklist_file)
+            except Exception:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+                raise
+            try:
                 os.chmod(self._blacklist_file, 0o600)
             except (OSError, PermissionError):
                 pass

@@ -6,7 +6,7 @@ import smtplib
 from datetime import datetime, timedelta, timezone
 from email.mime.text import MIMEText
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings
 
 logger = logging.getLogger(__name__)
@@ -16,7 +16,7 @@ class EmailConfig(BaseSettings):
     smtp_host: str = Field(default="smtp.gmail.com", alias="SMTP_HOST")
     smtp_port: int = Field(default=587, alias="SMTP_PORT")
     smtp_user: str = Field(default="", alias="SMTP_USER")
-    smtp_password: str = Field(default="", alias="SMTP_PASSWORD")
+    smtp_password: SecretStr = Field(default=SecretStr(""), alias="SMTP_PASSWORD")
     from_email: str = Field(default="", alias="FROM_EMAIL")
     from_name: str = Field(default="SanGlow", alias="FROM_NAME")
 
@@ -29,7 +29,7 @@ def generate_verification_code() -> str:
 
 def send_verification_email(to_email: str, code: str, username: str) -> bool:
     config = EmailConfig()
-    if not config.smtp_user or not config.smtp_password:
+    if not config.smtp_user or not config.smtp_password.get_secret_value():
         logger.warning("SMTP not configured - verification code: %s", code)
         return False
 
@@ -48,7 +48,7 @@ def send_verification_email(to_email: str, code: str, username: str) -> bool:
 
         with smtplib.SMTP(config.smtp_host, config.smtp_port, timeout=15) as server:
             server.starttls()
-            server.login(config.smtp_user, config.smtp_password)
+            server.login(config.smtp_user, config.smtp_password.get_secret_value())
             server.sendmail(config.smtp_user or config.from_email, to_email, msg.as_string())
         logger.info("Verification email sent to %s", to_email)
         return True
