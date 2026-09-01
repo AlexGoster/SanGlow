@@ -1,15 +1,15 @@
 [Setup]
 AppName=SanGlow
-AppVersion=1.0.8
+AppVersion=1.0.9
 AppPublisher=AlexGoster
 AppPublisherURL=https://github.com/AlexGoster/SanGlow
 AppSupportURL=https://github.com/AlexGoster/SanGlow/issues
 AppUpdatesURL=https://github.com/AlexGoster/SanGlow/releases
 AppCopyright=Copyright (c) 2024-2026 AlexGoster
-VersionInfoVersion=1.0.8.0
+VersionInfoVersion=1.0.9.0
 VersionInfoDescription=SanGlow Music Player
 VersionInfoProductName=SanGlow
-VersionInfoProductVersion=1.0.8
+VersionInfoProductVersion=1.0.9
 DefaultDirName={autopf}\SanGlow
 DefaultGroupName=SanGlow
 OutputDir=installer_output
@@ -31,6 +31,7 @@ DisableReadyPage=no
 DisableStartupPrompt=yes
 DisableDirPage=no
 DisableFinishedPage=no
+WindowVisible=yes
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -41,7 +42,7 @@ Type: filesandordirs; Name: "{app}\data"
 Type: filesandordirs; Name: "{app}\__pycache__"
 
 [Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: checkedonce
 
 [Files]
 Source: "dist\SanGlow\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
