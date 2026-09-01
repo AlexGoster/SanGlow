@@ -16,18 +16,15 @@ logger = logging.getLogger(__name__)
 
 
 class _CallbackHandler(BaseHTTPRequestHandler):
-    auth_code: str | None = None
-    state_param: str | None = None
-
     def do_GET(self) -> None:
         if "/callback" in self.path:
             query = parse_qs(self.path.split("?", 1)[1] if "?" in self.path else "")
             returned_state = query.get("state", [None])[0]
-            if _CallbackHandler.state_param and returned_state != _CallbackHandler.state_param:
+            if self.server.state_param and returned_state != self.server.state_param:
                 self.send_response(403)
                 self.end_headers()
                 return
-            _CallbackHandler.auth_code = query.get("code", [None])[0]
+            self.server.auth_code = query.get("code", [None])[0]
             self.send_response(200)
             self.send_header("Content-type", "text/html")
             self.end_headers()
@@ -65,18 +62,20 @@ class SpotifyAuth:
 
     def get_auth_url(self) -> str:
         state = secrets.token_urlsafe(32)
-        _CallbackHandler.state_param = state
+        self._state = state
         return self._auth_manager.get_authorize_url() + f"&state={state}"
 
     def authenticate_with_browser(self) -> str | None:
         webbrowser.open(self.get_auth_url())
         server = HTTPServer(("127.0.0.1", 0), _CallbackHandler)
+        server.auth_code = None
+        server.state_param = getattr(self, "_state", None)
         server.timeout = 60
-        _CallbackHandler.auth_code = None
-        while _CallbackHandler.auth_code is None:
+        while server.auth_code is None:
             server.handle_request()
+        code = server.auth_code
         server.server_close()
-        return _CallbackHandler.auth_code
+        return code
 
     def get_cached_token(self) -> str | None:
         token_info = self._auth_manager.get_cached_token()

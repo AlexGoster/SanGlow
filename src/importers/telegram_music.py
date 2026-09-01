@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 from typing import Any
 import re
@@ -30,7 +31,7 @@ class TelegramMusicImporter:
             try:
                 response = self._client.get(f"https://t.me/s/{channel}")
                 response.raise_for_status()
-                for match in re.finditer(r"<audio[^>]*>.*?</audio>", response.text, re.DOTALL):
+                for match in re.finditer(r"<audio[^>]*?>.*?</audio>", response.text, re.DOTALL):
                     block = match.group()
                     title = re.search(r'data-title="([^"]*)"', block)
                     performer = re.search(r'data-performer="([^"]*)"', block)
@@ -39,7 +40,7 @@ class TelegramMusicImporter:
                     a = performer.group(1) if performer else "Unknown"
                     d = int(duration.group(1)) * 1000 if duration else 0
                     if query.lower() in t.lower() or query.lower() in a.lower():
-                        tracks.append(Track(id=f"tg_{hash(t + a)}", title=t, artist=a, album="", duration_ms=d))
+                        tracks.append(Track(id=f"tg_{hashlib.sha256((t + a).encode()).hexdigest()[:16]}", title=t, artist=a, album="", duration_ms=d))
                         if len(tracks) >= limit:
                             return tracks
             except Exception:
@@ -54,7 +55,7 @@ class TelegramMusicImporter:
             response = self._client.get(f"https://t.me/s/{match.group(1)}")
             response.raise_for_status()
             tracks = []
-            for m in re.finditer(r"<audio[^>]*>.*?</audio>", response.text, re.DOTALL):
+            for m in re.finditer(r"<audio[^>]*?>.*?</audio>", response.text, re.DOTALL):
                 block = m.group()
                 title = re.search(r'data-title="([^"]*)"', block)
                 performer = re.search(r'data-performer="([^"]*)"', block)
@@ -62,7 +63,7 @@ class TelegramMusicImporter:
                 t = title.group(1) if title else "Unknown"
                 a = performer.group(1) if performer else "Unknown"
                 d = int(duration.group(1)) * 1000 if duration else 0
-                tracks.append(Track(id=f"tg_{hash(t + a)}", title=t, artist=a, album="", duration_ms=d))
+                tracks.append(Track(id=f"tg_{hashlib.sha256((t + a).encode()).hexdigest()[:16]}", title=t, artist=a, album="", duration_ms=d))
             return tracks
         except Exception:
             return []

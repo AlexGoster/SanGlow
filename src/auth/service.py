@@ -52,9 +52,9 @@ class AuthService:
         if password.lower().startswith(username.lower()):
             return AuthResult(success=False, error="Password cannot start with username")
         if self.db.query(User).filter(User.username == username).first():
-            return AuthResult(success=False, error="Username already taken")
+            return AuthResult(success=False, error="Registration failed")
         if self.db.query(User).filter(User.email == email).first():
-            return AuthResult(success=False, error="Email already registered")
+            return AuthResult(success=False, error="Registration failed")
 
         safe_display = sanitize_display_name(display_name) if display_name else username
         user = User(username=username, email=email, display_name=safe_display)
@@ -85,7 +85,7 @@ class AuthService:
             with _login_lock:
                 _login_attempts.setdefault(key, []).append(now)
                 attempts_left = cfg.max_login_attempts - len(_login_attempts.get(key, []))
-            logger.warning("Failed login for: %s, %d attempts left", key, attempts_left)
+            logger.warning("Failed login attempt for key: %s", key)
             return AuthResult(success=False, error=f"Invalid credentials ({attempts_left} attempts left)")
 
         with _login_lock:

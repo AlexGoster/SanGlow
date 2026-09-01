@@ -50,6 +50,10 @@ class AudioWorker(QObject):
         try:
             with httpx.stream("GET", self.url, follow_redirects=True, timeout=30, verify=True) as response:
                 response.raise_for_status()
+                content_type = response.headers.get("content-type", "")
+                if not any(t in content_type.lower() for t in ("audio", "mpeg", "ogg", "wav", "octet-stream")):
+                    self.error.emit("Unsupported file type")
+                    return
                 content_length = response.headers.get("content-length")
                 if content_length and int(content_length) > self.MAX_FILE_SIZE:
                     self.error.emit("File too large")
@@ -64,8 +68,10 @@ class AudioWorker(QObject):
                             return
                         f.write(chunk)
             self.finished.emit()
-        except Exception as e:
-            self.error.emit(str(e))
+        except httpx.HTTPStatusError:
+            self.error.emit("Download failed")
+        except Exception:
+            self.error.emit("Download failed")
 
 
 class MusicPlayer(QObject):

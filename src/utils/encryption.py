@@ -59,7 +59,7 @@ class EncryptionManager:
         try:
             return self._fernet.decrypt(encrypted_data.encode()).decode()
         except InvalidToken:
-            logger.error("Failed to decrypt data - invalid token or corrupted data")
+            logger.warning("Failed to decrypt data - invalid token or corrupted data")
             return ""
 
     def encrypt_dict(self, data: dict) -> str:

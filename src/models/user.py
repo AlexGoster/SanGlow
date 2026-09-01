@@ -27,6 +27,7 @@ class User(Base):
     failed_login_attempts: Mapped[int] = mapped_column(default=0)
     last_failed_login: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     password_changed_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    _old_passwords: Mapped[str | None] = mapped_column("old_passwords", Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
@@ -35,7 +36,19 @@ class User(Base):
 
     def set_password(self, password: str) -> None:
         from config.settings import get_security_config
+        from src.utils.encryption import EncryptionManager
         rounds = get_security_config().bcrypt_rounds
+        if self.password_hash:
+            try:
+                enc = EncryptionManager()
+                old_data = enc.decrypt_dict(self._old_passwords or "")
+                hashes = old_data.get("hashes", [])
+                hashes.append(self.password_hash)
+                if len(hashes) > 10:
+                    hashes = hashes[-10:]
+                self._old_passwords = enc.encrypt_dict({"hashes": hashes})
+            except Exception:
+                pass
         salt = bcrypt.gensalt(rounds=rounds)
         self.password_hash = bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
         self.password_changed_at = datetime.now(timezone.utc)
@@ -57,6 +70,16 @@ class User(Base):
         return access, refresh
 
     def was_password_used(self, password: str, max_history: int = 5) -> bool:
+        from src.utils.encryption import EncryptionManager
+        try:
+            enc = EncryptionManager()
+            old_data = enc.decrypt_dict(self._old_passwords or "")
+            hashes = old_data.get("hashes", [])
+            for h in hashes[-max_history:]:
+                if bcrypt.checkpw(password.encode("utf-8"), h.encode("utf-8")):
+                    return True
+        except Exception:
+            pass
         return False
 
     def to_dict(self) -> dict:

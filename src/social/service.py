@@ -11,7 +11,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from src.models.social import Comment, Like, Favorite, Wave, WaveTrack
-from src.utils.validators import sanitize_input, sanitize_track_id, validate_source
+from src.utils.validators import sanitize_input, sanitize_track_id, validate_source, validate_url
 
 logger = logging.getLogger(__name__)
 
@@ -128,8 +128,8 @@ class SocialService:
             title=_sanitize(str(track_data.get("name", track_data.get("title", "Unknown"))), _MAX_FIELD_LEN),
             artist=_sanitize(str(track_data.get("artist", "Unknown")), _MAX_FIELD_LEN),
             album=_sanitize(str(track_data.get("album") or ""), _MAX_FIELD_LEN),
-            cover_url=track_data.get("cover_url"),
-            preview_url=track_data.get("preview_url"),
+            cover_url=track_data.get("cover_url") if validate_url(str(track_data.get("cover_url", ""))) else None,
+            preview_url=track_data.get("preview_url") if validate_url(str(track_data.get("preview_url", ""))) else None,
             duration_ms=track_data.get("duration_ms"),
         )
         self.db.add(fav)
@@ -190,8 +190,8 @@ class SocialService:
             title=_sanitize(str(track_data.get("name", track_data.get("title", "Unknown"))), _MAX_FIELD_LEN),
             artist=_sanitize(str(track_data.get("artist", "Unknown")), _MAX_FIELD_LEN),
             album=_sanitize(str(track_data.get("album") or ""), _MAX_FIELD_LEN),
-            cover_url=track_data.get("cover_url"),
-            preview_url=track_data.get("preview_url"),
+            cover_url=track_data.get("cover_url") if validate_url(str(track_data.get("cover_url", ""))) else None,
+            preview_url=track_data.get("preview_url") if validate_url(str(track_data.get("preview_url", ""))) else None,
             duration_ms=track_data.get("duration_ms"),
             position=pos,
         )

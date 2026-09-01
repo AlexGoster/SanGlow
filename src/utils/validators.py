@@ -16,6 +16,7 @@ def sanitize_input(text: str, max_length: int = 1000) -> str:
 
 def sanitize_filename(filename: str) -> str:
     filename = re.sub(r'[<>:"/\\|?*]', "", filename).strip(". ")
+    filename = re.sub(r"\.\.", "", filename)
     return (filename or "unnamed")[:255]
 
 
@@ -68,7 +69,7 @@ def validate_url(url: str) -> bool:
 
 
 def sanitize_display_name(name: str) -> str:
-    name = re.sub(r"[{}\[\]()`^]", "", name)
+    name = re.sub(r"[{}\[\]()`^<>\"'/\\&]", "", name)
     return name.strip()[:100] or "User"
 
 

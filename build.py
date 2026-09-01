@@ -128,6 +128,13 @@ def create_installer(arch: str = "auto") -> str:
             shutil.rmtree(target)
     shutil.copytree(str(dist_dir.resolve()), str(target))
 
+    old_exe = target / f"SanGlow-{arch}.exe"
+    new_exe = target / "SanGlow.exe"
+    if old_exe.exists() and old_exe != new_exe:
+        if new_exe.exists():
+            new_exe.unlink()
+        old_exe.rename(new_exe)
+
     try:
         import subprocess
         result = subprocess.run(

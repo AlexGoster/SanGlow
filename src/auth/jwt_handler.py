@@ -29,14 +29,20 @@ class _TokenBlacklist:
         try:
             if self._blacklist_file.exists():
                 data = json.loads(self._blacklist_file.read_text(encoding="utf-8"))
-                self._jti_set = set(data.get("jti", []))
+                entries = data.get("entries", data.get("jti", []))
+                if entries and isinstance(entries[0], dict):
+                    self._jti_set = {e["j"] for e in entries}
+                else:
+                    self._jti_set = set(entries) if entries else set()
         except Exception:
             self._jti_set = set()
 
     def _save(self) -> None:
         try:
+            now = datetime.now(timezone.utc).timestamp()
+            entries = [{"j": jti, "t": now} for jti in self._jti_set]
             self._blacklist_file.write_text(
-                json.dumps({"jti": list(self._jti_set)}), encoding="utf-8"
+                json.dumps({"entries": entries}), encoding="utf-8"
             )
             try:
                 import os
@@ -57,7 +63,16 @@ class _TokenBlacklist:
 
     def cleanup(self, max_age_hours: int = 24) -> None:
         with self._lock:
-            self._save()
+            try:
+                data = json.loads(self._blacklist_file.read_text(encoding="utf-8")) if self._blacklist_file.exists() else {}
+                jti_with_time = data.get("entries", [])
+                now = datetime.now(timezone.utc).timestamp()
+                cutoff = now - (max_age_hours * 3600)
+                valid = [e for e in jti_with_time if e.get("t", 0) > cutoff]
+                self._jti_set = {e["j"] for e in valid}
+                self._save()
+            except Exception as e:
+                logger.error("Failed to cleanup token blacklist: %s", e)
 
 
 _blacklist = _TokenBlacklist()
