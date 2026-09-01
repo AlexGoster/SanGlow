@@ -15,21 +15,16 @@ def test_register_user():
         result = AuthService(db).register("testuser", "test@example.com", "SecurePass123!")
         assert result.success is True
         assert result.user is not None
-        assert result.requires_verification is True
-        code = result.user.verification_code
-        assert code is not None
-        verify_result = AuthService(db).verify_email("testuser", code)
-        assert verify_result.success is True
-        assert verify_result.access_token is not None
+        assert result.access_token is not None
 
 
 def test_login_user():
     init_db()
     with get_db_session() as db:
-        reg = AuthService(db).register("logintest", "login@example.com", "SecurePass123!")
-        AuthService(db).verify_email("logintest", reg.user.verification_code)
-        result = AuthService(db).login("logintest", "SecurePass123!")
-        assert result.success is True
+        result = AuthService(db).register("logintest", "login@example.com", "SecurePass123!")
+        assert result.access_token is not None
+        login_result = AuthService(db).login("logintest", "SecurePass123!")
+        assert login_result.success is True
 
 
 def test_weak_password():

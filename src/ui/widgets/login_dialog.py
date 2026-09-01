@@ -273,6 +273,8 @@ class LoginDialog(QDialog):
             if result.success and result.requires_verification:
                 self._pending_user = username
                 self._stack.setCurrentIndex(2)
+                if result.verification_code:
+                    self._show_error_on_page(2, f"Email not configured. Your code: {result.verification_code}")
             elif result.success and result.user:
                 self.login_successful.emit(result.user.to_dict())
                 self.accept()
@@ -298,8 +300,13 @@ class LoginDialog(QDialog):
         if not self._pending_user:
             return
         with get_db_session() as db:
-            AuthService(db).resend_verification(self._pending_user)
-        self._show_error_on_page(2, "New code sent to your email")
+            result = AuthService(db).resend_verification(self._pending_user)
+        if result.success and result.access_token:
+            self.login_successful.emit(result.user.to_dict())
+            self.accept()
+        else:
+            code_msg = f" (code: {result.verification_code})" if result.verification_code else ""
+            self._show_error_on_page(2, f"New code sent to your email{code_msg}")
 
     def _show_error(self, msg: str) -> None:
         if self._error_label:

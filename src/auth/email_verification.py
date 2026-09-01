@@ -30,8 +30,8 @@ def generate_verification_code() -> str:
 def send_verification_email(to_email: str, code: str, username: str) -> bool:
     config = EmailConfig()
     if not config.smtp_user or not config.smtp_password:
-        logger.warning("SMTP not configured - email verification skipped (code: %s)", code)
-        return True
+        logger.warning("SMTP not configured - verification code: %s", code)
+        return False
 
     try:
         msg = MIMEText(
