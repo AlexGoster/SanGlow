@@ -14,6 +14,7 @@ from src.ui.widgets.login_dialog import LoginDialog
 from src.ui.main_window import MainWindow
 from src.spotify.auth import SpotifyAuth
 from src.spotify.client import SpotifyClient
+from src.utils.autostart import is_autostart_enabled, enable_autostart, disable_autostart
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +45,8 @@ def _setup_logging() -> None:
 def main() -> None:
     _setup_logging()
     logger.info("SanGlow starting...")
+
+    start_minimized = "--minimized" in sys.argv
 
     try:
         init_db()
@@ -80,7 +83,21 @@ def main() -> None:
         window = MainWindow(user_data, spotify_client)
         if icon_path.exists():
             window.setWindowIcon(QIcon(str(icon_path)))
-        window.show()
+
+        from src.utils.smtc import get_media_hotkeys
+        hotkeys = get_media_hotkeys()
+        hotkeys.register(
+            play_pause=window._toggle_play_from_tray,
+            next_track=lambda: window._player.stop(),
+            prev_track=lambda: window._player.stop(),
+            stop=window._player.stop,
+        )
+
+        if start_minimized:
+            window.showMinimized()
+        else:
+            window.show()
+
         if spotify_client:
             window.load_data()
 

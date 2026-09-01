@@ -16,6 +16,7 @@ from src.ui.widgets.player_bar import PlayerBar
 from src.ui.greeting import get_greeting, get_suggested_playlists, get_time_of_day
 from src.models.database import get_db_session
 from src.social.service import SocialService
+from src.ui.tray import TrayIcon
 
 
 class TrackCard(QFrame):
@@ -213,11 +214,47 @@ class MainWindow(QWidget):
         self._spotify = spotify_client
         self._player = MusicPlayer()
         self._current_track_data: dict | None = None
+        self._tray: TrayIcon | None = None
         self.setWindowTitle("SanGlow")
         self.setMinimumSize(1000, 700)
         self.resize(1100, 750)
         self._setup_ui()
         self._player.track_changed.connect(self._on_track_changed)
+        self._setup_tray()
+
+    def _setup_tray(self) -> None:
+        self._tray = TrayIcon(self._player, self)
+        self._tray.show_clicked.connect(self._restore_from_tray)
+        self._tray.quit_clicked.connect(self._force_quit)
+        self._tray.play_pause_clicked.connect(self._toggle_play_from_tray)
+        self._tray.next_clicked.connect(lambda: self._player.stop())
+        self._tray.prev_clicked.connect(lambda: self._player.stop())
+        self._tray.stop_clicked.connect(self._player.stop)
+        self._tray.show()
+
+    def _restore_from_tray(self) -> None:
+        self.showNormal()
+        self.activateWindow()
+        self.raise_()
+
+    def _force_quit(self) -> None:
+        self._player.cleanup()
+        if self._tray:
+            self._tray.hide()
+        QApplication.instance().quit()
+
+    def _toggle_play_from_tray(self) -> None:
+        if self._player.is_playing:
+            self._player.pause()
+        elif self._player.is_paused:
+            self._player.resume()
+
+    def changeEvent(self, event) -> None:
+        if event.type() == event.Type.WindowStateChange:
+            if self.isMinimized():
+                event.ignore()
+                return
+        super().changeEvent(event)
 
     def _setup_ui(self) -> None:
         main_layout = QHBoxLayout(self)
@@ -494,5 +531,13 @@ class MainWindow(QWidget):
         self._load_waves()
 
     def closeEvent(self, event) -> None:
-        self._player.cleanup()
-        event.accept()
+        event.ignore()
+        self.hide()
+        if self._tray:
+            self._tray.show()
+            self._tray._tray.showMessage(
+                "SanGlow",
+                "SanGlow is minimized to tray. Double-click to restore.",
+                QSystemTrayIcon.MessageIcon.Information,
+                2000
+            )
