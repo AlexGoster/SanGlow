@@ -4,6 +4,7 @@ import logging
 import re
 import threading
 import time
+from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass, field
 
 from sqlalchemy.orm import Session
@@ -11,6 +12,7 @@ from sqlalchemy.orm import Session
 from src.models.user import User
 from src.utils.validators import sanitize_display_name
 from .jwt_handler import JWTHandler
+from .email_verification import generate_verification_code, send_verification_email, verify_code
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +24,7 @@ class AuthResult:
     access_token: str | None = None
     refresh_token: str | None = None
     error: str | None = None
+    requires_verification: bool = False
 
 
 _login_attempts: dict[str, list[float]] = {}
@@ -56,15 +59,21 @@ class AuthService:
         if self.db.query(User).filter(User.email == email).first():
             return AuthResult(success=False, error="Registration failed")
 
+        code = generate_verification_code()
         safe_display = sanitize_display_name(display_name) if display_name else username
-        user = User(username=username, email=email, display_name=safe_display)
+        user = User(
+            username=username, email=email, display_name=safe_display,
+            verification_code=code,
+            verification_expires=datetime.now(timezone.utc) + timedelta(minutes=15),
+        )
         user.set_password(password)
         self.db.add(user)
         self.db.commit()
         self.db.refresh(user)
 
-        logger.info("User registered: %s", username)
-        return AuthResult(success=True, user=user, access_token=self.jwt_handler.create_access_token(user.id), refresh_token=self.jwt_handler.create_refresh_token(user.id))
+        send_verification_email(email, code, username)
+        logger.info("User registered: %s, verification email sent", username)
+        return AuthResult(success=True, user=user, requires_verification=True)
 
     def login(self, username_or_email: str, password: str) -> AuthResult:
         from config.settings import get_security_config
@@ -94,8 +103,40 @@ class AuthService:
         if not user.is_active:
             return AuthResult(success=False, error="Account is deactivated")
 
+        if not user.email_verified:
+            return AuthResult(success=False, error="Please verify your email first", requires_verification=True)
+
         logger.info("Successful login: %s", username_or_email)
         return AuthResult(success=True, user=user, access_token=self.jwt_handler.create_access_token(user.id), refresh_token=self.jwt_handler.create_refresh_token(user.id))
+
+    def verify_email(self, username: str, code: str) -> AuthResult:
+        user = self.db.query(User).filter(User.username == username).first()
+        if not user:
+            return AuthResult(success=False, error="User not found")
+        if user.email_verified:
+            return AuthResult(success=True, user=user)
+        if not verify_code(user.verification_code, user.verification_expires, code):
+            return AuthResult(success=False, error="Invalid or expired verification code")
+        user.email_verified = True
+        user.verification_code = None
+        user.verification_expires = None
+        self.db.commit()
+        logger.info("Email verified for user: %s", username)
+        return AuthResult(success=True, user=user, access_token=self.jwt_handler.create_access_token(user.id), refresh_token=self.jwt_handler.create_refresh_token(user.id))
+
+    def resend_verification(self, username: str) -> AuthResult:
+        user = self.db.query(User).filter(User.username == username).first()
+        if not user:
+            return AuthResult(success=False, error="User not found")
+        if user.email_verified:
+            return AuthResult(success=False, error="Email already verified")
+        code = generate_verification_code()
+        user.verification_code = code
+        user.verification_expires = datetime.now(timezone.utc) + timedelta(minutes=15)
+        self.db.commit()
+        send_verification_email(user.email, code, user.username)
+        logger.info("Verification email resent to %s", user.email)
+        return AuthResult(success=True, user=user)
 
     def change_password(self, user_id: str, current_password: str, new_password: str) -> AuthResult:
         user = self.db.query(User).filter(User.id == user_id).first()

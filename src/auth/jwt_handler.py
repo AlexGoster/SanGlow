@@ -9,7 +9,7 @@ from pathlib import Path
 
 import jwt
 
-from config.settings import BASE_DIR, get_security_config
+from config.settings import DATA_DIR, get_security_config
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ BLOCKED_ALGORITHMS = {"none", "None", "NONE", "HS1", "HS0"}
 class _TokenBlacklist:
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._blacklist_file = BASE_DIR / "data" / ".token_blacklist.json"
+        self._blacklist_file = DATA_DIR / ".token_blacklist.json"
         self._blacklist_file.parent.mkdir(parents=True, exist_ok=True)
         self._jti_set: set[str] = set()
         self._load()

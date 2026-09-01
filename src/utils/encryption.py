@@ -9,7 +9,7 @@ from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-from config.settings import BASE_DIR, get_security_config
+from config.settings import DATA_DIR, get_security_config
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class EncryptionManager:
     def __init__(self) -> None:
         key = get_security_config().encryption_key.get_secret_value()
-        salt_file = BASE_DIR / "data" / ".enc_salt"
+        salt_file = DATA_DIR / ".enc_salt"
         salt_file.parent.mkdir(parents=True, exist_ok=True)
         if salt_file.exists():
             try:

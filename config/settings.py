@@ -14,10 +14,12 @@ logger = logging.getLogger(__name__)
 
 if getattr(sys, "frozen", False):
     BASE_DIR = Path(sys.executable).parent
+    USER_DATA_DIR = Path(os.environ.get("APPDATA", Path.home() / ".config")) / "SanGlow"
 else:
     BASE_DIR = Path(__file__).resolve().parent.parent
+    USER_DATA_DIR = BASE_DIR
 
-DATA_DIR = BASE_DIR / "data"
+DATA_DIR = USER_DATA_DIR / "data"
 CONFIG_DIR = BASE_DIR / "config"
 
 
@@ -103,7 +105,7 @@ class AppConfig(BaseSettings):
 
 def _get_db_url() -> str:
     if getattr(sys, "frozen", False):
-        db_path = Path(sys.executable).parent / "sanglow.db"
+        db_path = USER_DATA_DIR / "sanglow.db"
     else:
         db_path = Path(__file__).resolve().parent.parent / "sanglow.db"
     return f"sqlite:///{db_path}"
