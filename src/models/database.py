@@ -20,7 +20,8 @@ _session_factory = None
 
 def _get_db_path() -> Path:
     if getattr(sys, "frozen", False):
-        return Path(sys.executable).parent / "sanglow.db"
+        from config.settings import USER_DATA_DIR
+        return USER_DATA_DIR / "sanglow.db"
     return Path(__file__).resolve().parent.parent.parent / "sanglow.db"
 
 

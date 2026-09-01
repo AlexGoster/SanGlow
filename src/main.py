@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import sys
+import traceback
 from pathlib import Path
 
 from PyQt6.QtWidgets import QApplication, QMessageBox
@@ -17,17 +18,39 @@ from src.spotify.client import SpotifyClient
 logger = logging.getLogger(__name__)
 
 
+def _setup_logging() -> None:
+    if getattr(sys, "frozen", False):
+        from config.settings import USER_DATA_DIR
+        log_dir = USER_DATA_DIR / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_file = log_dir / "sanglow.log"
+        file_handler = logging.FileHandler(log_file, encoding="utf-8")
+        file_handler.setFormatter(logging.Formatter(
+            "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+        ))
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+            handlers=[logging.StreamHandler(), file_handler],
+        )
+    else:
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+            handlers=[logging.StreamHandler()],
+        )
+
+
 def main() -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        handlers=[logging.StreamHandler()],
-    )
+    _setup_logging()
+    logger.info("SanGlow starting...")
 
     try:
         init_db()
+        logger.info("Database initialized")
     except Exception as e:
-        logger.critical("Database initialization failed: %s", e)
+        logger.critical("Database initialization failed: %s", e, exc_info=True)
+        _show_fatal_error(f"Database initialization failed:\n{e}")
         sys.exit(1)
 
     app = QApplication(sys.argv)
@@ -69,9 +92,20 @@ def main() -> None:
     sys.exit(app.exec())
 
 
+def _show_fatal_error(msg: str) -> None:
+    try:
+        app = QApplication.instance()
+        if app is None:
+            app = QApplication(sys.argv)
+        QMessageBox.critical(None, "SanGlow - Fatal Error", msg)
+    except Exception:
+        pass
+
+
 if __name__ == "__main__":
     try:
         main()
     except Exception as e:
         logger.critical("Fatal error: %s", e, exc_info=True)
+        _show_fatal_error(f"Fatal error:\n{e}\n\nSee logs for details.")
         sys.exit(1)
