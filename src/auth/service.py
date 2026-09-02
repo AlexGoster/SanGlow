@@ -209,4 +209,4 @@ class AuthService:
             return False
         return (len(password) >= 10 and bool(re.search(r"[A-Z]", password))
                 and bool(re.search(r"[a-z]", password)) and bool(re.search(r"\d", password))
-                and bool(re.search(r"[!@#$%^&*(),.?\":{}|<>]", password)))
+                and bool(re.search(r"[!@#$%^&*(),.?\":{}|<>_\-]", password)))
