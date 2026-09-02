@@ -51,7 +51,7 @@ class AuthService:
         if not self._validate_email(email):
             return AuthResult(success=False, error="Invalid email format")
         if not self._validate_password(password):
-            return AuthResult(success=False, error="Password must be 10+ chars with upper, lower, digit and special char, not common")
+            return AuthResult(success=False, error="Password must be 10+ chars with upper, lower, digit and special")
         if password.lower() in COMMON_PASSWORDS:
             return AuthResult(success=False, error="Password is too common")
         if password.lower().startswith(username.lower()):
@@ -182,7 +182,7 @@ class AuthService:
         if current_password == new_password:
             return AuthResult(success=False, error="New password must be different from current")
         if not self._validate_password(new_password):
-            return AuthResult(success=False, error="Password must be 10+ chars with upper, lower, digit and special char")
+            return AuthResult(success=False, error="Password must be 10+ chars with upper, lower, digit and special")
         if new_password.lower() in COMMON_PASSWORDS:
             return AuthResult(success=False, error="Password is too common")
         user.set_password(new_password)

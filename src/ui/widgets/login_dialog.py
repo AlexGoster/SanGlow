@@ -337,7 +337,7 @@ class LoginDialog(QDialog):
                 font-size: 12px;
             }
         """)
-        self._error_label.setFixedHeight(40)
+        self._error_label.setWordWrap(True)
         current_page = self._stack.currentWidget()
         current_page.layout().insertWidget(2, self._error_label)
 
@@ -355,6 +355,6 @@ class LoginDialog(QDialog):
                 font-size: 12px;
             }
         """)
-        self._error_label.setFixedHeight(40)
+        self._error_label.setWordWrap(True)
         page = self._stack.widget(page_index)
         page.layout().insertWidget(2, self._error_label)
