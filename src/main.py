@@ -72,34 +72,36 @@ def main() -> None:
     app.setStyleSheet(SANGLOW_DARK)
 
     login = LoginDialog()
-    spotify_client: SpotifyClient | None = None
+    main_window = None
 
     def on_login_success(user_data: dict) -> None:
-        nonlocal spotify_client
+        nonlocal main_window
         try:
+            from src.spotify.client import SpotifyClient
+            from src.spotify.auth import SpotifyAuth
             spotify_client = SpotifyClient(SpotifyAuth().get_cached_token())
         except Exception:
-            pass
-        window = MainWindow(user_data, spotify_client)
+            spotify_client = None
+        main_window = MainWindow(user_data, spotify_client)
         if icon_path.exists():
-            window.setWindowIcon(QIcon(str(icon_path)))
+            main_window.setWindowIcon(QIcon(str(icon_path)))
 
         from src.utils.smtc import get_media_hotkeys
         hotkeys = get_media_hotkeys()
         hotkeys.register(
-            play_pause=window._toggle_play_from_tray,
-            next_track=lambda: window._player.stop(),
-            prev_track=lambda: window._player.stop(),
-            stop=window._player.stop,
+            play_pause=main_window._toggle_play_from_tray,
+            next_track=lambda: main_window._player.stop(),
+            prev_track=lambda: main_window._player.stop(),
+            stop=main_window._player.stop,
         )
 
         if start_minimized:
-            window.showMinimized()
+            main_window.showMinimized()
         else:
-            window.show()
+            main_window.showMaximized()
 
         if spotify_client:
-            window.load_data()
+            main_window.load_data()
 
     login.login_successful.connect(on_login_success)
 
