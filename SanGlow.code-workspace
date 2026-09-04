@@ -1,0 +1,11 @@
+{
+    "folders": [
+        {
+            "name": "SanGlow",
+            "path": "."
+        }
+    ],
+    "settings": {
+        "terminal.integrated.defaultProfile.windows": "PowerShell"
+    }
+}
