@@ -24,7 +24,6 @@ installer_output/
 
 # IDE
 .idea/
-.vscode/
 *.swp
 *.swo
 

@@ -1,0 +1,17 @@
+{
+    "recommendations": [
+        "ms-python.python",
+        "ms-python.debugpy",
+        "ms-python.black-formatter",
+        "ms-python.pylint",
+        "ms-python.mypy-type-checker",
+        "charliermarsh.ruff",
+        "ms-vscode.powershell",
+        "ms-vscode.hexeditor",
+        "redhat.vscode-yaml",
+        "yzhang.markdown-all-in-one",
+        "eamodio.gitlens",
+        "github.vscode-pull-request-github",
+        "ms-vscode.live-server"
+    ]
+}
