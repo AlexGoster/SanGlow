@@ -13,10 +13,19 @@ class TimeOfDay(Enum):
     NIGHT = "night"
 
 
+_EMOJI = {
+    TimeOfDay.MORNING: "\u2600\ufe0f",
+    TimeOfDay.DAY: "\ud83c\udf1e",
+    TimeOfDay.EVENING: "\ud83c\udf05",
+    TimeOfDay.NIGHT: "\ud83c\udf19",
+}
+
+
 @dataclass
 class Greeting:
     text: str
     time_of_day: TimeOfDay
+    emoji: str = ""
 
 
 _GREETINGS = {
@@ -92,7 +101,7 @@ def get_greeting(username: str | None = None) -> Greeting:
     if "{name}" in text and username:
         safe_name = username[:50].strip() or "User"
         text = text.format(name=safe_name)
-    return Greeting(text=text, time_of_day=tod)
+    return Greeting(text=text, time_of_day=tod, emoji=_EMOJI.get(tod, ""))
 
 
 def get_suggested_playlists(user_likes: list[str] | None = None) -> list[dict]:

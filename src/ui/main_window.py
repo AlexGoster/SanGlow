@@ -256,6 +256,15 @@ class MainWindow(QWidget):
                 return
         super().changeEvent(event)
 
+    def keyPressEvent(self, event) -> None:
+        if event.key() == Qt.Key.Key_F11:
+            if self.isFullScreen():
+                self.showMaximized()
+            else:
+                self.showFullScreen()
+        else:
+            super().keyPressEvent(event)
+
     def _setup_ui(self) -> None:
         main_layout = QHBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
