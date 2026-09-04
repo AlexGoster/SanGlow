@@ -26,6 +26,7 @@ class LoginDialog(QDialog):
         self._error_label = None
         self._captcha = MathCaptcha()
         self._pending_user = None
+        self._reset_email = None
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -65,6 +66,8 @@ class LoginDialog(QDialog):
         self._stack.addWidget(self._create_login_page())
         self._stack.addWidget(self._create_register_page())
         self._stack.addWidget(self._create_verify_page())
+        self._stack.addWidget(self._create_forgot_email_page())
+        self._stack.addWidget(self._create_forgot_reset_page())
         content_layout.addWidget(self._stack)
         content_layout.addStretch()
 
@@ -111,6 +114,12 @@ class LoginDialog(QDialog):
         register_link.setFixedHeight(40)
         register_link.clicked.connect(lambda: self._stack.setCurrentIndex(1))
         layout.addWidget(register_link)
+
+        forgot_link = QPushButton("Forgot Password?")
+        forgot_link.setObjectName("ghostButton")
+        forgot_link.setFixedHeight(36)
+        forgot_link.clicked.connect(lambda: self._stack.setCurrentIndex(3))
+        layout.addWidget(forgot_link)
 
         return page
 
@@ -248,6 +257,93 @@ class LoginDialog(QDialog):
 
         return page
 
+    def _create_forgot_email_page(self) -> QWidget:
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setSpacing(10)
+
+        title = QLabel("Reset Password")
+        title.setObjectName("sectionTitle")
+        layout.addWidget(title)
+
+        subtitle = QLabel("Enter your email to receive a reset code")
+        subtitle.setObjectName("subtitleLabel")
+        layout.addWidget(subtitle)
+        layout.addSpacing(4)
+
+        self._forgot_email = QLineEdit()
+        self._forgot_email.setPlaceholderText("Email address")
+        self._forgot_email.setFixedHeight(44)
+        layout.addWidget(self._forgot_email)
+
+        layout.addSpacing(4)
+
+        send_btn = QPushButton("Send Reset Code")
+        send_btn.setObjectName("primaryButton")
+        send_btn.setFixedHeight(44)
+        send_btn.clicked.connect(self._handle_forgot_send)
+        layout.addWidget(send_btn)
+
+        layout.addSpacing(8)
+
+        back_link = QPushButton("Back to login")
+        back_link.setObjectName("ghostButton")
+        back_link.setFixedHeight(36)
+        back_link.clicked.connect(lambda: self._stack.setCurrentIndex(0))
+        layout.addWidget(back_link)
+
+        return page
+
+    def _create_forgot_reset_page(self) -> QWidget:
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setSpacing(10)
+
+        title = QLabel("Enter Reset Code")
+        title.setObjectName("sectionTitle")
+        layout.addWidget(title)
+
+        subtitle = QLabel("Enter the code from your email and new password")
+        subtitle.setObjectName("subtitleLabel")
+        layout.addWidget(subtitle)
+        layout.addSpacing(4)
+
+        self._reset_code = QLineEdit()
+        self._reset_code.setPlaceholderText("Reset code")
+        self._reset_code.setFixedHeight(44)
+        self._reset_code.setMaxLength(6)
+        layout.addWidget(self._reset_code)
+
+        self._reset_new_password = QLineEdit()
+        self._reset_new_password.setPlaceholderText("New password")
+        self._reset_new_password.setEchoMode(QLineEdit.EchoMode.Password)
+        self._reset_new_password.setFixedHeight(44)
+        layout.addWidget(self._reset_new_password)
+
+        self._reset_confirm_password = QLineEdit()
+        self._reset_confirm_password.setPlaceholderText("Confirm new password")
+        self._reset_confirm_password.setEchoMode(QLineEdit.EchoMode.Password)
+        self._reset_confirm_password.setFixedHeight(44)
+        layout.addWidget(self._reset_confirm_password)
+
+        layout.addSpacing(4)
+
+        reset_btn = QPushButton("Reset Password")
+        reset_btn.setObjectName("primaryButton")
+        reset_btn.setFixedHeight(44)
+        reset_btn.clicked.connect(self._handle_forgot_reset)
+        layout.addWidget(reset_btn)
+
+        layout.addSpacing(8)
+
+        back_link = QPushButton("Back to login")
+        back_link.setObjectName("ghostButton")
+        back_link.setFixedHeight(36)
+        back_link.clicked.connect(lambda: self._stack.setCurrentIndex(0))
+        layout.addWidget(back_link)
+
+        return page
+
     def _handle_login(self) -> None:
         username = self._login_username.text().strip()
         password = self._login_password.text()
@@ -340,6 +436,52 @@ class LoginDialog(QDialog):
         else:
             code_msg = f" (code: {result.verification_code})" if result.verification_code else ""
             self._show_error_on_page(2, f"New code sent to your email{code_msg}")
+
+    def _handle_forgot_send(self) -> None:
+        email = self._forgot_email.text().strip()
+        if not email:
+            self._show_error("Please enter your email")
+            return
+        logger.info("Password reset requested for: %s", email)
+        with get_db_session() as db:
+            result = AuthService(db).forgot_password(email)
+            if result.success:
+                self._reset_email = email
+                self._stack.setCurrentIndex(4)
+                if result.verification_code:
+                    self._show_error_on_page(4, f"Email not configured. Your code: {result.verification_code}")
+                else:
+                    self._show_error_on_page(4, "Reset code sent to your email")
+            else:
+                logger.warning("Password reset failed: %s", result.error)
+                self._show_error(result.error or "Failed to send reset code")
+
+    def _handle_forgot_reset(self) -> None:
+        code = self._reset_code.text().strip()
+        new_password = self._reset_new_password.text()
+        confirm = self._reset_confirm_password.text()
+
+        if not code or not new_password:
+            self._show_error("Please fill in all fields")
+            return
+        if new_password != confirm:
+            self._show_error("Passwords do not match")
+            return
+        if not self._reset_email:
+            self._show_error("No email set. Go back and try again")
+            return
+
+        logger.info("Password reset attempt for: %s", self._reset_email)
+        with get_db_session() as db:
+            result = AuthService(db).reset_password(self._reset_email, code, new_password)
+            if result.success and result.user:
+                logger.info("Password reset successful for: %s", self._reset_email)
+                self._show_error_on_page(4, "Password reset successful! You can now login")
+                self._reset_email = None
+                self._stack.setCurrentIndex(0)
+            else:
+                logger.warning("Password reset failed: %s", result.error)
+                self._show_error_on_page(4, result.error or "Reset failed")
 
     def _show_error(self, msg: str) -> None:
         if self._error_label:

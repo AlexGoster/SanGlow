@@ -197,6 +197,38 @@ class AuthService:
         logger.info("Password changed for user: %s", user.username)
         return AuthResult(success=True, user=user)
 
+    def forgot_password(self, email: str) -> AuthResult:
+        user = self.db.query(User).filter(User.email == email).first()
+        if not user:
+            return AuthResult(success=False, error="No account found with this email")
+        code = generate_verification_code()
+        user.verification_code = code
+        user.verification_expires = datetime.now(timezone.utc) + timedelta(minutes=15)
+        self.db.commit()
+        email_sent = send_verification_email(email, code, user.username)
+        if not email_sent:
+            logger.info("SMTP not configured - reset code for %s: %s", email, code)
+            return AuthResult(success=True, user=user, verification_code=code)
+        logger.info("Password reset code sent to %s", email)
+        return AuthResult(success=True, user=user)
+
+    def reset_password(self, email: str, code: str, new_password: str) -> AuthResult:
+        user = self.db.query(User).filter(User.email == email).first()
+        if not user:
+            return AuthResult(success=False, error="No account found with this email")
+        if not verify_code(user.verification_code, user.verification_expires, code):
+            return AuthResult(success=False, error="Invalid or expired reset code")
+        if not self._validate_password(new_password):
+            return AuthResult(success=False, error="Password must be 10+ chars with upper, lower, digit and special")
+        if new_password.lower() in COMMON_PASSWORDS:
+            return AuthResult(success=False, error="Password is too common")
+        user.set_password(new_password)
+        user.verification_code = None
+        user.verification_expires = None
+        self.db.commit()
+        logger.info("Password reset for user: %s", user.username)
+        return AuthResult(success=True, user=user)
+
     def get_current_user(self, token: str) -> User | None:
         user_id = self.jwt_handler.decode_user_id(token)
         if not user_id:
