@@ -45,6 +45,13 @@ class AuthService:
         self.db = db
         self.jwt_handler = JWTHandler()
 
+    def check_existing(self, username: str, email: str) -> str | None:
+        if self.db.query(User).filter(User.username == username).first():
+            return "Username already taken"
+        if self.db.query(User).filter(User.email == email).first():
+            return "Email already registered"
+        return None
+
     def register(self, username: str, email: str, password: str, display_name: str | None = None) -> AuthResult:
         if not self._validate_username(username):
             return AuthResult(success=False, error="Username must be 3-50 chars, letters and underscores only")

@@ -77,31 +77,37 @@ def main() -> None:
     def on_login_success(user_data: dict) -> None:
         nonlocal main_window
         try:
-            from src.spotify.client import SpotifyClient
-            from src.spotify.auth import SpotifyAuth
-            spotify_client = SpotifyClient(SpotifyAuth().get_cached_token())
-        except Exception:
-            spotify_client = None
-        main_window = MainWindow(user_data, spotify_client)
-        if icon_path.exists():
-            main_window.setWindowIcon(QIcon(str(icon_path)))
+            logger.info("Login successful, creating MainWindow...")
+            try:
+                from src.spotify.client import SpotifyClient
+                from src.spotify.auth import SpotifyAuth
+                spotify_client = SpotifyClient(SpotifyAuth().get_cached_token())
+            except Exception:
+                spotify_client = None
+            main_window = MainWindow(user_data, spotify_client)
+            if icon_path.exists():
+                main_window.setWindowIcon(QIcon(str(icon_path)))
 
-        from src.utils.smtc import get_media_hotkeys
-        hotkeys = get_media_hotkeys()
-        hotkeys.register(
-            play_pause=main_window._toggle_play_from_tray,
-            next_track=lambda: main_window._player.stop(),
-            prev_track=lambda: main_window._player.stop(),
-            stop=main_window._player.stop,
-        )
+            from src.utils.smtc import get_media_hotkeys
+            hotkeys = get_media_hotkeys()
+            hotkeys.register(
+                play_pause=main_window._toggle_play_from_tray,
+                next_track=lambda: main_window._player.stop(),
+                prev_track=lambda: main_window._player.stop(),
+                stop=main_window._player.stop,
+            )
 
-        if start_minimized:
-            main_window.showMinimized()
-        else:
-            main_window.showMaximized()
+            if start_minimized:
+                main_window.showMinimized()
+            else:
+                main_window.showMaximized()
 
-        if spotify_client:
-            main_window.load_data()
+            if spotify_client:
+                main_window.load_data()
+            logger.info("MainWindow shown successfully")
+        except Exception as e:
+            logger.error("Failed to create MainWindow: %s", e, exc_info=True)
+            QMessageBox.critical(None, "SanGlow - Error", f"Failed to start application:\n{e}")
 
     login.login_successful.connect(on_login_success)
 

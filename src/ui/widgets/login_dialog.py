@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QLabel, QLineEdit,
     QPushButton, QStackedWidget, QWidget, QFrame,
@@ -10,6 +12,8 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from src.auth.service import AuthService
 from src.models.database import get_db_session
 from src.utils.captcha import MathCaptcha
+
+logger = logging.getLogger(__name__)
 
 
 class LoginDialog(QDialog):
@@ -250,9 +254,11 @@ class LoginDialog(QDialog):
         if not username or not password:
             self._show_error("Please fill in all fields")
             return
+        logger.info("Login attempt for: %s", username)
         with get_db_session() as db:
             result = AuthService(db).login(username, password)
             if result.success and result.user:
+                logger.info("Login successful for: %s", username)
                 self.login_successful.emit(result.user.to_dict())
                 self.accept()
             elif result.requires_verification:
@@ -260,6 +266,7 @@ class LoginDialog(QDialog):
                 self._stack.setCurrentIndex(2)
                 self._show_error_on_page(2, "Please verify your email first")
             else:
+                logger.warning("Login failed for: %s - %s", username, result.error)
                 self._show_error(result.error or "Invalid credentials")
 
     def _handle_register(self) -> None:
@@ -284,16 +291,27 @@ class LoginDialog(QDialog):
             return
 
         with get_db_session() as db:
+            existing = AuthService(db).check_existing(username, email)
+            if existing:
+                logger.warning("Registration blocked: %s", existing)
+                self._show_error(existing)
+                self._captcha = MathCaptcha()
+                self._captcha_label.setText(self._captcha.question)
+                self._captcha_input.clear()
+                return
             result = AuthService(db).register(username, email, password, display_name or None)
             if result.success and result.requires_verification:
+                logger.info("Registration successful, verification needed for: %s", username)
                 self._pending_user = username
                 self._stack.setCurrentIndex(2)
                 if result.verification_code:
                     self._show_error_on_page(2, f"Email not configured. Your code: {result.verification_code}")
             elif result.success and result.user:
+                logger.info("Registration successful (auto-verified) for: %s", username)
                 self.login_successful.emit(result.user.to_dict())
                 self.accept()
             else:
+                logger.warning("Registration failed for: %s - %s", username, result.error)
                 self._show_error(result.error or "Registration failed")
                 self._captcha = MathCaptcha()
                 self._captcha_label.setText(self._captcha.question)

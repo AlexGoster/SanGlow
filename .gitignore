@@ -38,3 +38,7 @@ convert_icon.py
 run_test.py
 data/
 *.key
+
+# Release archives
+*.zip
+SanGlow-*.zip

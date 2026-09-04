@@ -217,7 +217,7 @@ class MainWindow(QWidget):
         self._tray: TrayIcon | None = None
         self.setWindowTitle("SanGlow")
         self.setMinimumSize(900, 600)
-        self.showMaximized()
+        self.resize(1100, 750)
         self._setup_ui()
         self._player.track_changed.connect(self._on_track_changed)
         self._setup_tray()
