@@ -6,7 +6,8 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QListWidget, QListWidgetItem, QPushButton, QStackedWidget,
     QFrame, QTabWidget, QScrollArea, QGridLayout, QTextEdit,
-    QMenu, QMessageBox,
+    QMenu, QMessageBox, QDialog, QDialogButtonBox, QFormLayout,
+    QComboBox, QCheckBox,
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 
@@ -206,6 +207,109 @@ class PlaylistCard(QFrame):
         self.mousePressEvent = lambda e: self.clicked.emit(self.playlist)
 
 
+class ProfileDialog(QDialog):
+    def __init__(self, user_data: dict, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._user_data = user_data
+        self.setWindowTitle("SanGlow - Profile Settings")
+        self.setMinimumWidth(420)
+        self.setStyleSheet("""
+            QDialog { background: #1e1e1e; color: #e0d6cc; }
+            QLabel { color: #e0d6cc; font-size: 13px; }
+            QLineEdit { background: #2a2a2a; color: #e0d6cc; border: 1px solid #3a3a3a;
+                         border-radius: 6px; padding: 8px 12px; font-size: 13px; }
+            QLineEdit:focus { border-color: #e8734a; }
+            QComboBox { background: #2a2a2a; color: #e0d6cc; border: 1px solid #3a3a3a;
+                         border-radius: 6px; padding: 8px 12px; font-size: 13px; }
+            QComboBox::drop-down { border: none; }
+            QComboBox QAbstractItemView { background: #2a2a2a; color: #e0d6cc; selection-background-color: #e8734a; }
+            QCheckBox { color: #e0d6cc; font-size: 13px; spacing: 8px; }
+            QCheckBox::indicator { width: 18px; height: 18px; border-radius: 4px;
+                                   border: 2px solid #3a3a3a; background: #2a2a2a; }
+            QCheckBox::indicator:checked { background: #e8734a; border-color: #e8734a; }
+            QPushButton { background: #e8734a; color: #ffffff; border: none; border-radius: 6px;
+                          padding: 8px 20px; font-size: 13px; font-weight: 600; }
+            QPushButton:hover { background: #d4633a; }
+            QPushButton#cancelBtn { background: #3a3a3a; color: #e0d6cc; }
+            QPushButton#cancelBtn:hover { background: #4a4a4a; }
+        """)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(16)
+
+        title = QLabel("Profile Settings")
+        title.setStyleSheet("font-size: 20px; font-weight: 700; color: #e8734a; margin-bottom: 8px;")
+        layout.addWidget(title)
+
+        avatar_row = QHBoxLayout()
+        avatar_label = QLabel(user_data.get("username", "U")[0].upper())
+        avatar_label.setFixedSize(56, 56)
+        avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        avatar_label.setStyleSheet("background-color: #e8734a; color: #ffffff; border-radius: 28px; font-size: 22px; font-weight: 700;")
+        avatar_row.addWidget(avatar_label)
+        avatar_info = QVBoxLayout()
+        avatar_info.setSpacing(2)
+        name_lbl = QLabel(user_data.get("display_name", user_data.get("username", "")))
+        name_lbl.setStyleSheet("font-size: 16px; font-weight: 600; color: #e0d6cc;")
+        email_lbl = QLabel(user_data.get("email", ""))
+        email_lbl.setStyleSheet("font-size: 12px; color: #888;")
+        avatar_info.addWidget(name_lbl)
+        avatar_info.addWidget(email_lbl)
+        avatar_info.addStretch()
+        avatar_row.addLayout(avatar_info)
+        avatar_row.addStretch()
+        layout.addLayout(avatar_row)
+
+        form = QFormLayout()
+        form.setSpacing(12)
+
+        self._display_name = QLineEdit(user_data.get("display_name", ""))
+        self._display_name.setPlaceholderText("Display name")
+        form.addRow("Display Name", self._display_name)
+
+        self._email = QLineEdit(user_data.get("email", ""))
+        self._email.setPlaceholderText("Email")
+        form.addRow("Email", self._email)
+
+        self._language = QComboBox()
+        self._language.addItems(["English", "Русский", "Deutsch", "Français", "Español"])
+        lang = user_data.get("language", "Русский")
+        idx = self._language.findText(lang)
+        if idx >= 0:
+            self._language.setCurrentIndex(idx)
+        form.addRow("Language", self._language)
+
+        self._autostart = QCheckBox("Start minimized on login")
+        self._autostart.setChecked(user_data.get("autostart", False))
+        form.addRow("Autostart", self._autostart)
+
+        self._tray = QCheckBox("Minimize to system tray")
+        self._tray.setChecked(user_data.get("minimize_to_tray", True))
+        form.addRow("System Tray", self._tray)
+
+        layout.addLayout(form)
+
+        btn_box = QHBoxLayout()
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setObjectName("cancelBtn")
+        cancel_btn.clicked.connect(self.reject)
+        btn_box.addWidget(cancel_btn)
+        save_btn = QPushButton("Save")
+        save_btn.clicked.connect(self.accept)
+        btn_box.addWidget(save_btn)
+        layout.addLayout(btn_box)
+
+    def get_data(self) -> dict:
+        return {
+            "display_name": self._display_name.text().strip(),
+            "email": self._email.text().strip(),
+            "language": self._language.currentText(),
+            "autostart": self._autostart.isChecked(),
+            "minimize_to_tray": self._tray.isChecked(),
+        }
+
+
 class MainWindow(QWidget):
     def __init__(self, user_data: dict, spotify_client: SpotifyClient | None = None) -> None:
         super().__init__()
@@ -248,6 +352,13 @@ class MainWindow(QWidget):
             self._player.pause()
         elif self._player.is_paused:
             self._player.resume()
+
+    def _open_profile_settings(self) -> None:
+        dialog = ProfileDialog(self._user_data, self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            data = dialog.get_data()
+            self._user_data.update(data)
+            QMessageBox.information(self, "SanGlow", "Profile settings saved.")
 
     def changeEvent(self, event) -> None:
         if event.type() == event.Type.WindowStateChange:
@@ -299,6 +410,8 @@ class MainWindow(QWidget):
         profile = QFrame()
         profile.setStyleSheet("QFrame { background: #242424; border-radius: 10px; }")
         profile.setFixedHeight(52)
+        profile.setCursor(Qt.CursorShape.PointingHandCursor)
+        profile.mousePressEvent = lambda e: self._open_profile_settings()
         pl = QHBoxLayout(profile)
         pl.setContentsMargins(10, 8, 10, 8)
         pl.setSpacing(10)

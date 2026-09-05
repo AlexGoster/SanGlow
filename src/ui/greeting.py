@@ -97,7 +97,7 @@ def get_time_of_day() -> TimeOfDay:
 
 def get_greeting(username: str | None = None) -> Greeting:
     tod = get_time_of_day()
-    text = random.choice(_GREETINGS[tod])
+    text = _GREETINGS[tod][0]
     if "{name}" in text and username:
         safe_name = username[:50].strip() or "User"
         text = text.format(name=safe_name)
