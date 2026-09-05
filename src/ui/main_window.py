@@ -18,6 +18,7 @@ from src.ui.greeting import get_greeting, get_suggested_playlists, get_time_of_d
 from src.models.database import get_db_session
 from src.social.service import SocialService
 from src.ui.tray import TrayIcon
+from src.i18n import t, load_translations, get_available_languages
 
 
 class TrackCard(QFrame):
@@ -211,7 +212,7 @@ class ProfileDialog(QDialog):
     def __init__(self, user_data: dict, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._user_data = user_data
-        self.setWindowTitle("SanGlow - Profile Settings")
+        self.setWindowTitle(f"SanGlow - {t('profile_settings')}")
         self.setMinimumWidth(420)
         self.setStyleSheet("""
             QDialog { background: #1e1e1e; color: #e0d6cc; }
@@ -238,7 +239,7 @@ class ProfileDialog(QDialog):
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(16)
 
-        title = QLabel("Profile Settings")
+        title = QLabel(t("profile_settings"))
         title.setStyleSheet("font-size: 20px; font-weight: 700; color: #e8734a; margin-bottom: 8px;")
         layout.addWidget(title)
 
@@ -265,37 +266,37 @@ class ProfileDialog(QDialog):
         form.setSpacing(12)
 
         self._display_name = QLineEdit(user_data.get("display_name", ""))
-        self._display_name.setPlaceholderText("Display name")
-        form.addRow("Display Name", self._display_name)
+        self._display_name.setPlaceholderText(t("display_name"))
+        form.addRow(t("display_name"), self._display_name)
 
         self._email = QLineEdit(user_data.get("email", ""))
-        self._email.setPlaceholderText("Email")
-        form.addRow("Email", self._email)
+        self._email.setPlaceholderText(t("email"))
+        form.addRow(t("email"), self._email)
 
         self._language = QComboBox()
-        self._language.addItems(["English", "Русский", "Deutsch", "Français", "Español"])
+        self._language.addItems(get_available_languages())
         lang = user_data.get("language", "Русский")
         idx = self._language.findText(lang)
         if idx >= 0:
             self._language.setCurrentIndex(idx)
-        form.addRow("Language", self._language)
+        form.addRow(t("language"), self._language)
 
-        self._autostart = QCheckBox("Start minimized on login")
+        self._autostart = QCheckBox(t("autostart_desc"))
         self._autostart.setChecked(user_data.get("autostart", False))
-        form.addRow("Autostart", self._autostart)
+        form.addRow(t("autostart"), self._autostart)
 
-        self._tray = QCheckBox("Minimize to system tray")
+        self._tray = QCheckBox(t("system_tray_desc"))
         self._tray.setChecked(user_data.get("minimize_to_tray", True))
-        form.addRow("System Tray", self._tray)
+        form.addRow(t("system_tray"), self._tray)
 
         layout.addLayout(form)
 
         btn_box = QHBoxLayout()
-        cancel_btn = QPushButton("Cancel")
+        cancel_btn = QPushButton(t("cancel"))
         cancel_btn.setObjectName("cancelBtn")
         cancel_btn.clicked.connect(self.reject)
         btn_box.addWidget(cancel_btn)
-        save_btn = QPushButton("Save")
+        save_btn = QPushButton(t("save"))
         save_btn.clicked.connect(self.accept)
         btn_box.addWidget(save_btn)
         layout.addLayout(btn_box)
@@ -319,6 +320,7 @@ class MainWindow(QWidget):
         self._player = MusicPlayer()
         self._current_track_data: dict | None = None
         self._tray: TrayIcon | None = None
+        load_translations(user_data.get("language", "Русский"))
         self.setWindowTitle("SanGlow")
         self.setMinimumSize(900, 600)
         self.resize(1100, 750)
@@ -357,8 +359,14 @@ class MainWindow(QWidget):
         dialog = ProfileDialog(self._user_data, self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             data = dialog.get_data()
+            old_lang = self._user_data.get("language", "Русский")
             self._user_data.update(data)
-            QMessageBox.information(self, "SanGlow", "Profile settings saved.")
+            new_lang = data.get("language", "Русский")
+            if old_lang != new_lang:
+                load_translations(new_lang)
+                QMessageBox.information(self, "SanGlow", t("profile_saved"))
+            else:
+                QMessageBox.information(self, "SanGlow", t("profile_saved"))
 
     def changeEvent(self, event) -> None:
         if event.type() == event.Type.WindowStateChange:
@@ -394,7 +402,7 @@ class MainWindow(QWidget):
         sb.addSpacing(20)
 
         self._nav_buttons = []
-        nav_items = [("\U0001F3E0", "Home", 0), ("\U0001F50D", "Search", 1), ("\U0001F4DA", "Library", 2), ("\u26A1", "My Waves", 3)]
+        nav_items = [("\U0001F3E0", t("home"), 0), ("\U0001F50D", t("search"), 1), ("\U0001F4DA", t("library"), 2), ("\u26A1", t("my_waves"), 3)]
         for icon, label, idx in nav_items:
             btn = QPushButton(f"  {icon}    {label}")
             btn.setCheckable(True)
@@ -438,7 +446,7 @@ class MainWindow(QWidget):
         h_layout.setContentsMargins(24, 0, 24, 0)
 
         self._search_input = QLineEdit()
-        self._search_input.setPlaceholderText("What do you want to listen to?")
+        self._search_input.setPlaceholderText(t("search_placeholder"))
         self._search_input.setFixedWidth(420)
         self._search_input.setFixedHeight(40)
         self._search_input.returnPressed.connect(self._perform_search)
@@ -477,7 +485,7 @@ class MainWindow(QWidget):
         layout.addWidget(greeting_label)
 
         playlists = get_suggested_playlists()
-        pl_header = QLabel("Рекомендации для тебя")
+        pl_header = QLabel(t("recommendations_for_you"))
         pl_header.setObjectName("sectionTitle")
         layout.addWidget(pl_header)
 
@@ -491,7 +499,7 @@ class MainWindow(QWidget):
 
         quick_grid = QGridLayout()
         quick_grid.setSpacing(12)
-        labels = ["Recently Played", "Your Top Tracks", "Liked Songs", "Discover Weekly", "Release Radar", "Daily Mix"]
+        labels = [t("recently_played"), t("your_top_tracks"), t("liked_song"), t("discover_weekly"), t("release_radar"), t("daily_mix")]
         for i, lbl_text in enumerate(labels):
             card = QFrame()
             card.setFixedHeight(64)
@@ -506,12 +514,12 @@ class MainWindow(QWidget):
         layout.addLayout(quick_grid)
 
         if self._spotify:
-            layout.addWidget(self._section("Recently Played"))
+            layout.addWidget(self._section(t("recently_played")))
             self._recent_list = QListWidget()
             self._recent_list.setMaximumHeight(180)
             layout.addWidget(self._recent_list)
 
-            layout.addWidget(self._section("Your Top Tracks"))
+            layout.addWidget(self._section(t("your_top_tracks")))
             self._top_tracks_list = QListWidget()
             self._top_tracks_list.setMaximumHeight(180)
             layout.addWidget(self._top_tracks_list)
@@ -537,15 +545,15 @@ class MainWindow(QWidget):
         layout = QVBoxLayout(page)
         layout.setContentsMargins(28, 24, 28, 16)
 
-        title = QLabel("Your Library")
+        title = QLabel(t("library"))
         title.setObjectName("sectionTitle")
         layout.addWidget(title)
 
         tabs = QTabWidget()
         self._playlists_list = QListWidget()
-        tabs.addTab(self._playlists_list, "Playlists")
+        tabs.addTab(self._playlists_list, t("library"))
         self._favorites_list = QListWidget()
-        tabs.addTab(self._favorites_list, "Favorites")
+        tabs.addTab(self._favorites_list, t("liked_song"))
         layout.addWidget(tabs)
         return page
 
@@ -556,11 +564,11 @@ class MainWindow(QWidget):
         layout.setSpacing(16)
 
         top = QHBoxLayout()
-        title = QLabel("My Waves")
+        title = QLabel(t("my_waves"))
         title.setObjectName("sectionTitle")
         top.addWidget(title)
         top.addStretch()
-        create_btn = QPushButton("+ New Wave")
+        create_btn = QPushButton(f"+ {t('create_wave')}")
         create_btn.setObjectName("primaryButton")
         create_btn.setFixedHeight(36)
         create_btn.clicked.connect(self._create_wave)

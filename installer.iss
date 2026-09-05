@@ -40,9 +40,15 @@ Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\data"
 Type: filesandordirs; Name: "{app}\__pycache__"
+Type: filesandordirs; Name: "{localappdata}\SanGlow"
+Type: filesandordirs; Name: "{localappdata}\sanglow"
+Type: filesandordirs; Name: "{app}\*.db"
+Type: filesandordirs; Name: "{app}\settings.json"
+Type: filesandordirs; Name: "{app}\config"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: checkedonce
+Name: "cleandata"; Description: "Remove all previous user data and settings"; GroupDescription: "Cleanup:"; Flags: unchecked
 
 [Files]
 Source: "dist\SanGlow\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -55,3 +61,17 @@ Name: "{autodesktop}\SanGlow"; Filename: "{app}\SanGlow.exe"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\SanGlow.exe"; Description: "{cm:LaunchProgram,SanGlow}"; Flags: nowait postinstall skipifsilent shellexec
+
+[Code]
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if (CurStep = ssPostInstall) and IsTaskSelected('cleandata') then
+  begin
+    DelTree(ExpandConstant('{localappdata}\SanGlow'), True, True, True);
+    DelTree(ExpandConstant('{localappdata}\sanglow'), True, True, True);
+    DelTree(ExpandConstant('{app}\data'), True, True, True);
+    DelTree(ExpandConstant('{app}\config'), True, True, True);
+    DeleteFile(ExpandConstant('{app}\settings.json'));
+    DeleteFile(ExpandConstant('{app}\*.db'));
+  end;
+end;
