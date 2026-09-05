@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
+from src.i18n import get_current_lang
+
 
 class TimeOfDay(Enum):
     MORNING = "morning"
@@ -21,43 +23,159 @@ _EMOJI = {
 }
 
 
-@dataclass
-class Greeting:
-    text: str
-    time_of_day: TimeOfDay
-    emoji: str = ""
-
-
 _GREETINGS = {
-    TimeOfDay.MORNING: [
-        "Доброе утро",
-        "Утро начинается",
-        "Доброе утро, {name}",
-        "Просыпайся, {name}",
-        "Утро, {name}",
-    ],
-    TimeOfDay.DAY: [
-        "Добрый день",
-        "Привет, {name}",
-        "Хорошего дня, {name}",
-        "День в ритме, {name}",
-        "Привет, {name}",
-    ],
-    TimeOfDay.EVENING: [
-        "Добрый вечер",
-        "Вечерний ритм, {name}",
-        "Вечер, {name}",
-        "Отдыхай, {name}",
-        "Вечер в ритме, {name}",
-    ],
-    TimeOfDay.NIGHT: [
-        "Спокойной ночи",
-        "Ночная музыка, {name}",
-        "Тихий вечер, {name}",
-        "Ночной микс, {name}",
-        "Спокойной ночи, {name}",
-    ],
+    "Русский": {
+        TimeOfDay.MORNING: [
+            "Доброе утро",
+            "Утро начинается",
+            "Доброе утро, {name}",
+            "Просыпайся, {name}",
+            "Утро, {name}",
+        ],
+        TimeOfDay.DAY: [
+            "Добрый день",
+            "Привет, {name}",
+            "Хорошего дня, {name}",
+            "День в ритме, {name}",
+            "Привет, {name}",
+        ],
+        TimeOfDay.EVENING: [
+            "Добрый вечер",
+            "Вечерний ритм, {name}",
+            "Вечер, {name}",
+            "Отдыхай, {name}",
+            "Вечер в ритме, {name}",
+        ],
+        TimeOfDay.NIGHT: [
+            "Спокойной ночи",
+            "Ночная музыка, {name}",
+            "Тихий вечер, {name}",
+            "Ночной микс, {name}",
+            "Спокойной ночи, {name}",
+        ],
+    },
+    "English": {
+        TimeOfDay.MORNING: [
+            "Good morning",
+            "Rise and shine",
+            "Good morning, {name}",
+            "Wake up, {name}",
+            "Morning, {name}",
+        ],
+        TimeOfDay.DAY: [
+            "Good afternoon",
+            "Hey, {name}",
+            "Have a great day, {name}",
+            "Day in rhythm, {name}",
+            "Hello, {name}",
+        ],
+        TimeOfDay.EVENING: [
+            "Good evening",
+            "Evening vibe, {name}",
+            "Evening, {name}",
+            "Relax, {name}",
+            "Evening in rhythm, {name}",
+        ],
+        TimeOfDay.NIGHT: [
+            "Good night",
+            "Night music, {name}",
+            "Quiet evening, {name}",
+            "Night mix, {name}",
+            "Good night, {name}",
+        ],
+    },
+    "Deutsch": {
+        TimeOfDay.MORNING: [
+            "Guten Morgen",
+            "Der Morgen beginnt",
+            "Guten Morgen, {name}",
+            "Wach auf, {name}",
+            "Morgen, {name}",
+        ],
+        TimeOfDay.DAY: [
+            "Guten Tag",
+            "Hallo, {name}",
+            "Schönen Tag, {name}",
+            "Tag im Rhythmus, {name}",
+            "Hallo, {name}",
+        ],
+        TimeOfDay.EVENING: [
+            "Guten Abend",
+            "Abendstimmung, {name}",
+            "Abend, {name}",
+            "Entspann dich, {name}",
+            "Abend im Rhythmus, {name}",
+        ],
+        TimeOfDay.NIGHT: [
+            "Gute Nacht",
+            "Nachtmusik, {name}",
+            "Ruhiger Abend, {name}",
+            "Nachtmix, {name}",
+            "Gute Nacht, {name}",
+        ],
+    },
+    "Français": {
+        TimeOfDay.MORNING: [
+            "Bonjour",
+            "Le matin commence",
+            "Bonjour, {name}",
+            "Réveille-toi, {name}",
+            "Matin, {name}",
+        ],
+        TimeOfDay.DAY: [
+            "Bonjour",
+            "Salut, {name}",
+            "Bonne journée, {name}",
+            "Jour en rythme, {name}",
+            "Bonjour, {name}",
+        ],
+        TimeOfDay.EVENING: [
+            "Bonsoir",
+            "Ambiance du soir, {name}",
+            "Soir, {name}",
+            "Détends-toi, {name}",
+            "Soir en rythme, {name}",
+        ],
+        TimeOfDay.NIGHT: [
+            "Bonne nuit",
+            "Musique nocturne, {name}",
+            "Soirée calme, {name}",
+            "Mix nocturne, {name}",
+            "Bonne nuit, {name}",
+        ],
+    },
+    "Español": {
+        TimeOfDay.MORNING: [
+            "Buenos días",
+            "El día comienza",
+            "Buenos días, {name}",
+            "Despierta, {name}",
+            "Mañana, {name}",
+        ],
+        TimeOfDay.DAY: [
+            "Buenas tardes",
+            "Hola, {name}",
+            "Que tengas un buen día, {name}",
+            "Día en ritmo, {name}",
+            "Hola, {name}",
+        ],
+        TimeOfDay.EVENING: [
+            "Buenas noches",
+            "Ritmo nocturno, {name}",
+            "Noche, {name}",
+            "Relájate, {name}",
+            "Noche en ritmo, {name}",
+        ],
+        TimeOfDay.NIGHT: [
+            "Buenas noches",
+            "Música nocturna, {name}",
+            "Noche tranquila, {name}",
+            "Mix nocturno, {name}",
+            "Buenas noches, {name}",
+        ],
+    },
 }
+
 
 _MOOD_PLAYLISTS = {
     TimeOfDay.MORNING: [
@@ -97,7 +215,9 @@ def get_time_of_day() -> TimeOfDay:
 
 def get_greeting(username: str | None = None) -> Greeting:
     tod = get_time_of_day()
-    text = _GREETINGS[tod][0]
+    lang = get_current_lang()
+    greetings = _GREETINGS.get(lang, _GREETINGS["Русский"])
+    text = greetings[tod][0]
     if "{name}" in text and username:
         safe_name = username[:50].strip() or "User"
         text = text.format(name=safe_name)

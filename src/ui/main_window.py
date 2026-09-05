@@ -57,13 +57,13 @@ class TrackRow(QFrame):
 
         num = QLabel(f"{index + 1}")
         num.setFixedWidth(24)
-        num.setStyleSheet("color: #a0a0a0; font-size: 14px; background: transparent;")
+        num.setStyleSheet("color: #888888; font-size: 14px; background: transparent;")
         layout.addWidget(num)
 
         cover = QLabel("\u266B")
         cover.setFixedSize(40, 40)
         cover.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        cover.setStyleSheet("background: #282828; color: #e8734a; border-radius: 4px; font-size: 16px;")
+        cover.setStyleSheet("background: #252525; color: #e8734a; border-radius: 4px; font-size: 16px;")
         layout.addWidget(cover)
 
         info = QVBoxLayout()
@@ -81,14 +81,14 @@ class TrackRow(QFrame):
         layout.addLayout(info, stretch=1)
 
         album = QLabel(track.album if hasattr(track, 'album') else "")
-        album.setStyleSheet("color: #a0a0a0; font-size: 13px; background: transparent;")
+        album.setStyleSheet("color: #888888; font-size: 13px; background: transparent;")
         album.setMaximumWidth(200)
         layout.addWidget(album)
 
         ms = track.duration_ms
         mins, secs = divmod(ms // 1000, 60)
         duration = QLabel(f"{mins}:{secs:02d}")
-        duration.setStyleSheet("color: #a0a0a0; font-size: 13px; background: transparent;")
+        duration.setStyleSheet("color: #888888; font-size: 13px; background: transparent;")
         layout.addWidget(duration)
 
         self._like_btn = QPushButton("\u2661")
@@ -165,7 +165,7 @@ class PlaylistCard(QFrame):
         cover = QLabel("\u266B")
         cover.setFixedSize(156, 156)
         cover.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        cover.setStyleSheet("background: #282828; color: #e8734a; border-radius: 8px; font-size: 40px;")
+        cover.setStyleSheet("background: #252525; color: #e8734a; border-radius: 8px; font-size: 40px;")
         layout.addWidget(cover)
 
         name = QLabel(playlist.get("name", "Playlist"))
@@ -174,7 +174,7 @@ class PlaylistCard(QFrame):
         layout.addWidget(name)
 
         desc = QLabel(playlist.get("description", ""))
-        desc.setStyleSheet("font-size: 12px; color: #a0a0a0; background: transparent;")
+        desc.setStyleSheet("font-size: 12px; color: #888888; background: transparent;")
         desc.setMaximumWidth(160)
         desc.setText(desc.fontMetrics().elidedText(playlist.get("description", ""), Qt.TextElideMode.ElideRight, 160))
         layout.addWidget(desc)
@@ -188,25 +188,25 @@ class ProfileDialog(QDialog):
     def __init__(self, user_data: dict, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._user_data = user_data
-        self.setWindowTitle(f"SanGlow - {t('profile_settings')}")
+        self.setWindowTitle(f"SanGlow — {t('profile_settings')}")
         self.setMinimumWidth(420)
         self.setStyleSheet("""
             QDialog { background: #1e1e1e; color: #e0d6cc; }
             QLabel { color: #e0d6cc; font-size: 13px; }
-            QLineEdit { background: #2a2a2a; color: #e0d6cc; border: 1px solid #3a3a3a;
+            QLineEdit { background: #252525; color: #e0d6cc; border: 1px solid #3a3a3a;
                          border-radius: 6px; padding: 8px 12px; font-size: 13px; }
             QLineEdit:focus { border-color: #e8734a; }
-            QComboBox { background: #2a2a2a; color: #e0d6cc; border: 1px solid #3a3a3a;
+            QComboBox { background: #252525; color: #e0d6cc; border: 1px solid #3a3a3a;
                          border-radius: 6px; padding: 8px 12px; font-size: 13px; }
             QComboBox::drop-down { border: none; }
-            QComboBox QAbstractItemView { background: #2a2a2a; color: #e0d6cc; selection-background-color: #e8734a; }
+            QComboBox QAbstractItemView { background: #252525; color: #e0d6cc; selection-background-color: #e8734a; }
             QCheckBox { color: #e0d6cc; font-size: 13px; spacing: 8px; }
             QCheckBox::indicator { width: 18px; height: 18px; border-radius: 4px;
-                                   border: 2px solid #3a3a3a; background: #2a2a2a; }
+                                   border: 2px solid #3a3a3a; background: #252525; }
             QCheckBox::indicator:checked { background: #e8734a; border-color: #e8734a; }
             QPushButton { background: #e8734a; color: #ffffff; border: none; border-radius: 6px;
                           padding: 8px 20px; font-size: 13px; font-weight: 600; }
-            QPushButton:hover { background: #d4633a; }
+            QPushButton:hover { background: #f28150; }
             QPushButton#cancelBtn { background: #3a3a3a; color: #e0d6cc; }
             QPushButton#cancelBtn:hover { background: #4a4a4a; }
         """)
@@ -230,7 +230,7 @@ class ProfileDialog(QDialog):
         name_lbl = QLabel(user_data.get("display_name", user_data.get("username", "")))
         name_lbl.setStyleSheet("font-size: 16px; font-weight: 600; color: #e0d6cc;")
         email_lbl = QLabel(user_data.get("email", ""))
-        email_lbl.setStyleSheet("font-size: 12px; color: #888;")
+        email_lbl.setStyleSheet("font-size: 12px; color: #888888;")
         avatar_info.addWidget(name_lbl)
         avatar_info.addWidget(email_lbl)
         avatar_info.addStretch()
@@ -378,7 +378,7 @@ class MainWindow(QWidget):
         sb.setSpacing(0)
 
         nav_area = QFrame()
-        nav_area.setStyleSheet("background: #121212; border-radius: 8px; margin: 8px;")
+        nav_area.setStyleSheet("background: #1a1a1a; border-radius: 8px; margin: 8px;")
         nav_layout = QVBoxLayout(nav_area)
         nav_layout.setContentsMargins(12, 16, 12, 8)
         nav_layout.setSpacing(4)
@@ -408,7 +408,7 @@ class MainWindow(QWidget):
         sb.addWidget(nav_area)
 
         lib_header = QFrame()
-        lib_header.setStyleSheet("background: #121212; margin: 0 8px; border-radius: 8px;")
+        lib_header.setStyleSheet("background: #1a1a1a; margin: 0 8px; border-radius: 8px;")
         lib_layout = QVBoxLayout(lib_header)
         lib_layout.setContentsMargins(16, 12, 16, 8)
         lib_label = QLabel(t("library"))
@@ -419,7 +419,7 @@ class MainWindow(QWidget):
         playlist_scroll = QScrollArea()
         playlist_scroll.setWidgetResizable(True)
         playlist_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        playlist_scroll.setStyleSheet("background: #121212; border: none; margin: 0 8px;")
+        playlist_scroll.setStyleSheet("background: #1a1a1a; border: none; margin: 0 8px;")
         self._playlist_list_widget = QWidget()
         self._playlist_list_layout = QVBoxLayout(self._playlist_list_widget)
         self._playlist_list_layout.setContentsMargins(8, 4, 8, 4)
@@ -429,7 +429,7 @@ class MainWindow(QWidget):
         sb.addWidget(playlist_scroll, stretch=1)
 
         profile_frame = QFrame()
-        profile_frame.setStyleSheet("QFrame { background: #121212; border-radius: 8px; margin: 0 8px 8px 8px; } QFrame:hover { background: #1a1a1a; }")
+        profile_frame.setStyleSheet("QFrame { background: #1a1a1a; border-radius: 8px; margin: 0 8px 8px 8px; } QFrame:hover { background: #222222; }")
         profile_frame.setFixedHeight(52)
         profile_frame.setCursor(Qt.CursorShape.PointingHandCursor)
         profile_frame.mousePressEvent = lambda e: self._open_profile_settings()
@@ -474,14 +474,14 @@ class MainWindow(QWidget):
 
     def _create_home_page(self) -> QWidget:
         page = QWidget()
-        page.setStyleSheet("background: #121212;")
+        page.setStyleSheet("background: #1a1a1a;")
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setStyleSheet("background: #121212; border: none;")
+        scroll.setStyleSheet("background: #1a1a1a; border: none;")
 
         inner = QWidget()
-        inner.setStyleSheet("background: #121212;")
+        inner.setStyleSheet("background: #1a1a1a;")
         layout = QVBoxLayout(inner)
         layout.setContentsMargins(24, 24, 24, 16)
         layout.setSpacing(24)
@@ -553,14 +553,14 @@ class MainWindow(QWidget):
 
     def _create_search_page(self) -> QWidget:
         page = QWidget()
-        page.setStyleSheet("background: #121212;")
+        page.setStyleSheet("background: #1a1a1a;")
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setStyleSheet("background: #121212; border: none;")
+        scroll.setStyleSheet("background: #1a1a1a; border: none;")
 
         inner = QWidget()
-        inner.setStyleSheet("background: #121212;")
+        inner.setStyleSheet("background: #1a1a1a;")
         layout = QVBoxLayout(inner)
         layout.setContentsMargins(24, 24, 24, 16)
         layout.setSpacing(24)
@@ -570,11 +570,11 @@ class MainWindow(QWidget):
         self._search_bar.setFixedHeight(48)
         self._search_bar.setStyleSheet("""
             QLineEdit {
-                background: #2a2a2a; color: #ffffff; border: 2px solid transparent;
+                background: #252525; color: #e0d6cc; border: 2px solid transparent;
                 border-radius: 24px; padding: 0 20px; font-size: 15px;
             }
-            QLineEdit:focus { border-color: #ffffff; background: #333333; }
-            QLineEdit::placeholder { color: #727272; }
+            QLineEdit:focus { border-color: #e8734a; background: #2a2a2a; }
+            QLineEdit::placeholder { color: #666666; }
         """)
         self._search_bar.textChanged.connect(self._on_search_text_changed)
         self._search_bar.returnPressed.connect(self._perform_search)
@@ -626,7 +626,7 @@ class MainWindow(QWidget):
 
     def _create_library_page(self) -> QWidget:
         page = QWidget()
-        page.setStyleSheet("background: #121212;")
+        page.setStyleSheet("background: #1a1a1a;")
         layout = QVBoxLayout(page)
         layout.setContentsMargins(24, 24, 24, 16)
         layout.setSpacing(16)
@@ -640,10 +640,10 @@ class MainWindow(QWidget):
 
         tabs = QTabWidget()
         tabs.setStyleSheet("""
-            QTabWidget::pane { border: none; background: #121212; }
-            QTabBar::tab { background: transparent; color: #b3b3b3; padding: 10px 24px;
+            QTabWidget::pane { border: none; background: #1a1a1a; }
+            QTabBar::tab { background: transparent; color: #a09888; padding: 10px 24px;
                            border: none; font-size: 14px; font-weight: 600; border-bottom: 3px solid transparent; }
-            QTabBar::tab:selected { color: #ffffff; border-bottom-color: #ffffff; }
+            QTabBar::tab:selected { color: #ffffff; border-bottom-color: #e8734a; }
             QTabBar::tab:hover { color: #ffffff; }
         """)
         self._playlists_list = QListWidget()
@@ -657,7 +657,7 @@ class MainWindow(QWidget):
 
     def _create_waves_page(self) -> QWidget:
         page = QWidget()
-        page.setStyleSheet("background: #121212;")
+        page.setStyleSheet("background: #1a1a1a;")
         layout = QVBoxLayout(page)
         layout.setContentsMargins(24, 24, 24, 16)
         layout.setSpacing(16)
@@ -757,7 +757,7 @@ class MainWindow(QWidget):
             self._tray.show()
             self._tray._tray.showMessage(
                 "SanGlow",
-                "SanGlow is minimized to tray. Double-click to restore.",
+                t("minimize_to_tray"),
                 QSystemTrayIcon.MessageIcon.Information,
                 2000
             )
