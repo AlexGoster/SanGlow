@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SanGlow - UI Preview</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app">
+        <aside class="sidebar">
+            <div class="logo">SanGlow</div>
+            <nav class="nav">
+                <a href="#" class="nav-item active">Главная</a>
+                <a href="#" class="nav-item">Поиск</a>
+                <a href="#" class="nav-item">Медиатека</a>
+                <a href="#" class="nav-item">Мои волны</a>
+            </nav>
+            <div class="import-btn">Импорт музыки</div>
+        </aside>
+        <main class="content">
+            <h1>Спокойной ночи</h1>
+            <div class="quick-picks">
+                <div class="quick-card" style="background: #503750;">Недавние</div>
+                <div class="quick-card" style="background: #1E3264;">Ваши лучшие треки</div>
+                <div class="quick-card" style="background: #8D67AB;">Избранное</div>
+                <div class="quick-card" style="background: #1E3264;">Открытия недели</div>
+                <div class="quick-card" style="background: #E8115B;">Новые релизы</div>
+                <div class="quick-card" style="background: #148A08;">Дневной микс</div>
+            </div>
+            <h2>Рекомендации для тебя</h2>
+            <div class="playlists">
+                <div class="playlist-card">
+                    <div class="cover">♪</div>
+                    <div class="name">Ночной джаз</div>
+                    <div class="desc">Спокойный джаз для ночи</div>
+                </div>
+                <div class="playlist-card">
+                    <div class="cover">♪</div>
+                    <div class="name">Звездная ночь</div>
+                    <div class="desc">Атмосферная музыка для ночи</div>
+                </div>
+                <div class="playlist-card">
+                    <div class="cover">♪</div>
+                    <div class="name">Спокойной ночи</div>
+                    <div class="desc">Тихие треки для засыпания</div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <footer class="player-bar">
+        <div class="track-info">
+            <div class="cover-small">♪</div>
+            <div>
+                <div class="title">Нет воспроизведения</div>
+                <div class="artist"></div>
+            </div>
+        </div>
+        <div class="controls">
+            <button class="shuffle">...</button>
+            <button class="prev">...</button>
+            <button class="play">▶</button>
+            <button class="next">...</button>
+            <button class="repeat">...</button>
+        </div>
+        <div class="progress">
+            <span class="time">0:00</span>
+            <input type="range" min="0" max="100" value="0">
+            <span class="time">0:00</span>
+        </div>
+        <div class="volume">
+            <span>🔊</span>
+            <input type="range" min="0" max="100" value="70">
+        </div>
+    </footer>
+</body>
+</html>

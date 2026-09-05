@@ -12,6 +12,15 @@
         "yzhang.markdown-all-in-one",
         "eamodio.gitlens",
         "github.vscode-pull-request-github",
-        "ms-vscode.live-server"
+        "ms-vscode.live-server",
+        "ecmel.vscode-html-css",
+        "bradlc.vscode-tailwindcss",
+        "dsznajder.es7-react-js-snippets",
+        "esbenp.prettier-vscode",
+        "stylelint.vscode-stylelint",
+        "cssrem.snippet",
+        "zignd.html-css-class-completion",
+        "prisma.prisma",
+        "ms-vscode.vscode-typescript-next"
     ]
 }

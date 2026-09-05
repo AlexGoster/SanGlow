@@ -19,5 +19,35 @@
         "build": true,
         "dist": true,
         ".venv": true
+    },
+    "css.validate": true,
+    "less.validate": true,
+    "scss.validate": true,
+    "emmet.includeLanguages": {
+        "python": "html",
+        "javascript": "html"
+    },
+    "emmet.snippetsFiles": [
+        " snippets.json"
+    ],
+    "files.associations": {
+        "*.qss": "css",
+        "*.json": "jsonc"
+    },
+    "editor.quickSuggestions": {
+        "css": true,
+        "scss": true
+    },
+    "[css]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[html]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[javascript]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[json]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
     }
 }

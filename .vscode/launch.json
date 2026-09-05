@@ -33,6 +33,12 @@
             "env": {
                 "PYTHONPATH": "${workspaceFolder}"
             }
+        },
+        {
+            "name": "SanGlow: Build",
+            "type": "shell",
+            "command": "cd ${workspaceFolder} && .venv/Scripts/python.exe -m PyInstaller --noconfirm --onedir --noconsole --name SanGlow --icon assets/icon.ico --add-data \"assets/icon.ico;assets\" --add-data \"assets/icon.png;assets\" --add-data \"config;config\" --add-data \"src/i18n;src/i18n\" src/main.py",
+            "problemMatcher": []
         }
     ]
 }
