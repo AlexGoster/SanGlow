@@ -2,40 +2,11 @@ from __future__ import annotations
 
 from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton,
-    QSlider, QFrame,
+    QSlider, QFrame, QSizePolicy,
 )
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 
 from src.player.engine import MusicPlayer
-
-
-class SpeedButton(QPushButton):
-    def __init__(self, speed: float, parent: QWidget | None = None) -> None:
-        label = f"{speed:.1f}x" if speed != int(speed) else f"{int(speed)}x"
-        super().__init__(label, parent)
-        self.speed = speed
-        self.setFixedSize(36, 26)
-        self.setCheckable(True)
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setStyleSheet("""
-            QPushButton {
-                background-color: #242424;
-                color: #8a8580;
-                border: 1px solid #3a3535;
-                border-radius: 13px;
-                font-size: 10px;
-                font-weight: 600;
-            }
-            QPushButton:hover {
-                color: #e8734a;
-                border-color: #e8734a;
-            }
-            QPushButton:checked {
-                background-color: #e8734a;
-                color: #ffffff;
-                border-color: #e8734a;
-            }
-        """)
 
 
 class PlayerBar(QWidget):
@@ -48,122 +19,148 @@ class PlayerBar(QWidget):
         super().__init__(parent)
         self._player = player
         self.setObjectName("playerBar")
-        self.setFixedHeight(90)
-        self._speed_buttons: list[SpeedButton] = []
+        self.setFixedHeight(80)
         self._setup_ui()
-        self._player.playback_started.connect(lambda: self._play_btn.setText("\u23F8"))
-        self._player.playback_paused.connect(lambda: self._play_btn.setText("\u25B6"))
+        self._player.playback_started.connect(self._on_play)
+        self._player.playback_paused.connect(self._on_pause)
         self._player.playback_stopped.connect(self._on_stopped)
         self._player.track_changed.connect(self._on_track_changed)
 
     def _setup_ui(self) -> None:
-        main = QVBoxLayout(self)
-        main.setContentsMargins(20, 8, 20, 6)
-        main.setSpacing(0)
+        main = QHBoxLayout(self)
+        main.setContentsMargins(16, 0, 16, 0)
+        main.setSpacing(16)
 
-        top_row = QHBoxLayout()
-        top_row.setSpacing(16)
+        left = QHBoxLayout()
+        left.setSpacing(12)
+        left.setContentsMargins(0, 0, 0, 0)
+
+        self._cover = QLabel("\u266B")
+        self._cover.setFixedSize(56, 56)
+        self._cover.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._cover.setStyleSheet("background: #282828; color: #e8734a; border-radius: 4px; font-size: 20px;")
+        left.addWidget(self._cover)
 
         info = QVBoxLayout()
         info.setSpacing(2)
-        self._title_label = QLabel("No track playing")
-        self._title_label.setStyleSheet("font-size: 12px; font-weight: 600; color: #e0d6cc; background: transparent;")
-        self._artist_label = QLabel("")
-        self._artist_label.setStyleSheet("color: #8a8580; font-size: 11px; background: transparent;")
-        info.addWidget(self._title_label)
-        info.addWidget(self._artist_label)
+        info.setContentsMargins(0, 0, 0, 0)
+        self._title = QLabel("No track playing")
+        self._title.setStyleSheet("font-size: 14px; font-weight: 600; color: #ffffff; background: transparent;")
+        self._title.setMaximumWidth(200)
+        self._artist = QLabel("")
+        self._artist.setStyleSheet("font-size: 12px; color: #b3b3b3; background: transparent;")
+        self._artist.setMaximumWidth(200)
+        info.addWidget(self._title)
+        info.addWidget(self._artist)
         info.addStretch()
-        top_row.addLayout(info, stretch=2)
+        left.addLayout(info)
+
+        like_btn = QPushButton("\u2661")
+        like_btn.setFixedSize(28, 28)
+        like_btn.setStyleSheet("QPushButton { font-size: 16px; color: #b3b3b3; background: transparent; border: none; } QPushButton:hover { color: #ffffff; }")
+        like_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        left.addWidget(like_btn)
+
+        main.addLayout(left, stretch=2)
+
+        center = QVBoxLayout()
+        center.setSpacing(4)
+        center.setContentsMargins(0, 0, 0, 0)
 
         controls = QHBoxLayout()
-        controls.setSpacing(20)
+        controls.setSpacing(16)
         controls.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        shuffle_btn = QPushButton("\u2684")
+        shuffle_btn.setFixedSize(28, 28)
+        shuffle_btn.setStyleSheet("QPushButton { font-size: 12px; color: #b3b3b3; background: transparent; border: none; } QPushButton:hover { color: #ffffff; }")
+        shuffle_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        controls.addWidget(shuffle_btn)
 
         prev_btn = QPushButton("\u23EE")
         prev_btn.setFixedSize(32, 32)
-        prev_btn.setStyleSheet("QPushButton { font-size: 14px; color: #8a8580; background: transparent; border: none; } QPushButton:hover { color: #e8734a; }")
+        prev_btn.setStyleSheet("QPushButton { font-size: 14px; color: #b3b3b3; background: transparent; border: none; } QPushButton:hover { color: #ffffff; }")
         prev_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         prev_btn.clicked.connect(self.prev_clicked.emit)
+        controls.addWidget(prev_btn)
 
         self._play_btn = QPushButton("\u25B6")
         self._play_btn.setObjectName("playButton")
         self._play_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._play_btn.clicked.connect(self._toggle_play)
+        controls.addWidget(self._play_btn)
 
         next_btn = QPushButton("\u23ED")
         next_btn.setFixedSize(32, 32)
-        next_btn.setStyleSheet("QPushButton { font-size: 14px; color: #8a8580; background: transparent; border: none; } QPushButton:hover { color: #e8734a; }")
+        next_btn.setStyleSheet("QPushButton { font-size: 14px; color: #b3b3b3; background: transparent; border: none; } QPushButton:hover { color: #ffffff; }")
         next_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         next_btn.clicked.connect(self.next_clicked.emit)
-
-        controls.addWidget(prev_btn)
-        controls.addWidget(self._play_btn)
         controls.addWidget(next_btn)
-        top_row.addLayout(controls, stretch=1)
 
-        vol_layout = QHBoxLayout()
-        vol_layout.setSpacing(6)
-        vol_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
+        repeat_btn = QPushButton("\u27F3")
+        repeat_btn.setFixedSize(28, 28)
+        repeat_btn.setStyleSheet("QPushButton { font-size: 12px; color: #b3b3b3; background: transparent; border: none; } QPushButton:hover { color: #ffffff; }")
+        repeat_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        controls.addWidget(repeat_btn)
+
+        center.addLayout(controls)
+
+        progress_row = QHBoxLayout()
+        progress_row.setSpacing(8)
+        self._time_label = QLabel("0:00")
+        self._time_label.setStyleSheet("font-size: 11px; color: #b3b3b3; background: transparent;")
+        self._time_label.setFixedWidth(36)
+        progress_row.addWidget(self._time_label)
+
+        self._progress = QSlider(Qt.Orientation.Horizontal)
+        self._progress.setRange(0, 100)
+        self._progress.setValue(0)
+        self._progress.setStyleSheet("""
+            QSlider::groove:horizontal { height: 4px; background: #4d4d4d; border-radius: 2px; }
+            QSlider::handle:horizontal { background: #ffffff; width: 12px; height: 12px; margin: -4px 0; border-radius: 6px; }
+            QSlider::handle:horizontal:hover { background: #ffffff; width: 14px; height: 14px; margin: -5px 0; border-radius: 7px; }
+            QSlider::sub-page:horizontal { background: #b3b3b3; border-radius: 2px; }
+            QSlider:hover::sub-page:horizontal { background: #e8734a; }
+        """)
+        progress_row.addWidget(self._progress, stretch=1)
+
+        self._duration_label = QLabel("0:00")
+        self._duration_label.setStyleSheet("font-size: 11px; color: #b3b3b3; background: transparent;")
+        self._duration_label.setFixedWidth(36)
+        progress_row.addWidget(self._duration_label)
+
+        center.addLayout(progress_row)
+        main.addLayout(center, stretch=4)
+
+        right = QHBoxLayout()
+        right.setSpacing(8)
+        right.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+
+        queue_btn = QPushButton("\u2630")
+        queue_btn.setFixedSize(28, 28)
+        queue_btn.setStyleSheet("QPushButton { font-size: 14px; color: #b3b3b3; background: transparent; border: none; } QPushButton:hover { color: #ffffff; }")
+        queue_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        right.addWidget(queue_btn)
+
         vol_icon = QLabel("\U0001F50A")
         vol_icon.setFixedSize(20, 20)
-        vol_icon.setStyleSheet("font-size: 11px; color: #5a5550; background: transparent;")
-        self._volume_slider = QSlider(Qt.Orientation.Horizontal)
-        self._volume_slider.setFixedWidth(90)
-        self._volume_slider.setRange(0, 100)
-        self._volume_slider.setValue(70)
-        self._volume_slider.valueChanged.connect(lambda v: setattr(self._player, 'volume', v / 100.0))
-        vol_layout.addWidget(vol_icon)
-        vol_layout.addWidget(self._volume_slider)
-        top_row.addLayout(vol_layout)
+        vol_icon.setStyleSheet("font-size: 12px; color: #b3b3b3; background: transparent;")
+        right.addWidget(vol_icon)
 
-        main.addLayout(top_row)
+        self._volume = QSlider(Qt.Orientation.Horizontal)
+        self._volume.setFixedWidth(100)
+        self._volume.setRange(0, 100)
+        self._volume.setValue(70)
+        self._volume.setStyleSheet("""
+            QSlider::groove:horizontal { height: 4px; background: #4d4d4d; border-radius: 2px; }
+            QSlider::handle:horizontal { background: #ffffff; width: 12px; height: 12px; margin: -4px 0; border-radius: 6px; }
+            QSlider::handle:horizontal:hover { background: #ffffff; width: 14px; height: 14px; margin: -5px 0; border-radius: 7px; }
+            QSlider::sub-page:horizontal { background: #ffffff; border-radius: 2px; }
+        """)
+        self._volume.valueChanged.connect(lambda v: setattr(self._player, 'volume', v / 100.0))
+        right.addWidget(self._volume)
 
-        speed_row = QHBoxLayout()
-        speed_row.setSpacing(6)
-        speed_row.setContentsMargins(0, 6, 0, 0)
-
-        for s in [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]:
-            btn = SpeedButton(s)
-            btn.clicked.connect(lambda checked, b=btn: self._set_speed(b.speed))
-            if s == 1.0:
-                btn.setChecked(True)
-            self._speed_buttons.append(btn)
-            speed_row.addWidget(btn)
-
-        speed_row.addSpacing(8)
-
-        self._speed_slider = QSlider(Qt.Orientation.Horizontal)
-        self._speed_slider.setFixedWidth(100)
-        self._speed_slider.setRange(25, 200)
-        self._speed_slider.setValue(100)
-        self._speed_slider.valueChanged.connect(self._on_speed_slider)
-        speed_row.addWidget(self._speed_slider)
-
-        self._speed_value = QLabel("1.0x")
-        self._speed_value.setFixedWidth(30)
-        self._speed_value.setStyleSheet("font-size: 10px; color: #e8734a; font-weight: 600; background: transparent;")
-        speed_row.addWidget(self._speed_value)
-
-        speed_row.addStretch()
-        main.addLayout(speed_row)
-
-    def _set_speed(self, speed: float) -> None:
-        self._player.speed = speed
-        self._speed_slider.blockSignals(True)
-        self._speed_slider.setValue(int(speed * 100))
-        self._speed_slider.blockSignals(False)
-        self._speed_value.setText(f"{speed:.1f}x")
-        for btn in self._speed_buttons:
-            btn.setChecked(btn.speed == speed)
-
-    def _on_speed_slider(self, value: int) -> None:
-        speed = value / 100.0
-        speed = round(speed * 4) / 4
-        speed = max(0.25, min(2.0, speed))
-        self._player.speed = speed
-        self._speed_value.setText(f"{speed:.1f}x")
-        for btn in self._speed_buttons:
-            btn.setChecked(abs(btn.speed - speed) < 0.01)
+        main.addLayout(right, stretch=1)
 
     def _toggle_play(self) -> None:
         if self._player.is_playing:
@@ -171,11 +168,17 @@ class PlayerBar(QWidget):
         elif self._player.is_paused:
             self._player.resume()
 
+    def _on_play(self) -> None:
+        self._play_btn.setText("\u23F8")
+
+    def _on_pause(self) -> None:
+        self._play_btn.setText("\u25B6")
+
     def _on_track_changed(self, track: dict) -> None:
-        self._title_label.setText(track.get("name", "Unknown"))
-        self._artist_label.setText(track.get("artist", "Unknown"))
+        self._title.setText(track.get("name", "Unknown"))
+        self._artist.setText(track.get("artist", ""))
 
     def _on_stopped(self) -> None:
         self._play_btn.setText("\u25B6")
-        self._title_label.setText("No track playing")
-        self._artist_label.setText("")
+        self._title.setText("No track playing")
+        self._artist.setText("")

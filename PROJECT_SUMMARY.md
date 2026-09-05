@@ -9,14 +9,21 @@ Desktop music streaming/player app (PyQt6 + Python) for GitHub portfolio.
 - GitHub CLI for releases
 
 ## Key Features
-- Spotify-like UI (dark gray + orange accent)
+- Spotify-style UI (dark gray + green accent)
+- Hero section with greeting and quick-pick cards
+- Search page with genre categories and live search results
+- Library with playlist/favorites tabs
+- Player bar with progress bar, shuffle, repeat, volume
 - System tray (minimize to tray, context menu)
 - Global media hotkeys (Play/Pause, Next, Prev, Stop)
 - Autostart on Windows login
+- Profile settings dialog with language switcher
 - Registration/Login with email verification
 - Captcha protection
 - Rate limiting on failed logins
 - JWT authentication
+- F11 fullscreen toggle
+- i18n (5 languages: RU, EN, DE, FR, ES)
 
 ## Security (30+ fixes)
 - Password hashing (bcrypt)
