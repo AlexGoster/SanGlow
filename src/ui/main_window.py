@@ -16,11 +16,13 @@ from PyQt6.QtWidgets import QSystemTrayIcon
 from src.spotify.client import SpotifyClient, Track
 from src.player.engine import MusicPlayer
 from src.ui.widgets.player_bar import PlayerBar
+from src.ui.widgets.import_dialog import ImportDialog
 from src.ui.greeting import get_greeting, get_suggested_playlists, get_time_of_day
 from src.models.database import get_db_session
 from src.social.service import SocialService
 from src.ui.tray import TrayIcon
 from src.i18n import t, load_translations, get_available_languages
+from src.importers.local_music import LocalMusicLibrary
 
 
 _SEARCH_CATEGORIES = [
@@ -294,6 +296,7 @@ class MainWindow(QWidget):
         self._user_id = user_data.get("id", "")
         self._spotify = spotify_client
         self._player = MusicPlayer()
+        self._local_library = LocalMusicLibrary()
         self._current_track_data: dict | None = None
         self._tray: TrayIcon | None = None
         self._search_timer = QTimer()
@@ -346,6 +349,30 @@ class MainWindow(QWidget):
             if old_lang != new_lang:
                 load_translations(new_lang)
             QMessageBox.information(self, "SanGlow", t("profile_saved"))
+
+    def _open_import_dialog(self) -> None:
+        dialog = ImportDialog(self)
+        dialog.import_completed.connect(self._on_import_completed)
+        dialog.exec()
+
+    def _on_import_completed(self, tracks: list) -> None:
+        self._load_local_library()
+
+    def _load_local_library(self) -> None:
+        if hasattr(self, '_local_tracks_list'):
+            self._local_tracks_list.clear()
+            for track in self._local_library.get_all_tracks():
+                name = track.name
+                artist = track.artist
+                item = QListWidgetItem(f"{name} — {artist}" if artist else name)
+                item.setData(Qt.ItemDataRole.UserRole, track.to_dict())
+                self._local_tracks_list.addItem(item)
+
+    def _on_local_track_clicked(self, item: QListWidgetItem) -> None:
+        track_data = item.data(Qt.ItemDataRole.UserRole)
+        if track_data:
+            self._current_track_data = track_data
+            self._player.load_and_play(track_data)
 
     def changeEvent(self, event) -> None:
         if event.type() == event.Type.WindowStateChange:
@@ -404,6 +431,21 @@ class MainWindow(QWidget):
             nav_layout.addWidget(btn)
             self._nav_buttons.append(btn)
         self._nav_buttons[0].setChecked(True)
+
+        nav_layout.addSpacing(8)
+
+        import_btn = QPushButton(f"  \u2B07    {t('import_music')}")
+        import_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        import_btn.setFixedHeight(42)
+        import_btn.setStyleSheet("""
+            QPushButton { text-align: left; padding: 10px 16px; border-radius: 8px;
+                          margin: 2px 8px; font-size: 14px; font-weight: 600;
+                          color: #e8734a; background: transparent; }
+            QPushButton:hover { background-color: #252525; }
+        """)
+        import_btn.clicked.connect(self._open_import_dialog)
+        nav_layout.addWidget(import_btn)
+
         nav_layout.addStretch()
         sb.addWidget(nav_area)
 
@@ -652,7 +694,13 @@ class MainWindow(QWidget):
         self._favorites_list = QListWidget()
         self._favorites_list.setStyleSheet("background: transparent; border: none; font-size: 14px;")
         tabs.addTab(self._favorites_list, t("liked_song"))
+        self._local_tracks_list = QListWidget()
+        self._local_tracks_list.setStyleSheet("background: transparent; border: none; font-size: 14px;")
+        self._local_tracks_list.itemDoubleClicked.connect(self._on_local_track_clicked)
+        tabs.addTab(self._local_tracks_list, t("local_music"))
         layout.addWidget(tabs)
+
+        self._load_local_library()
         return page
 
     def _create_waves_page(self) -> QWidget:

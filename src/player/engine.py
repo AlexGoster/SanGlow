@@ -16,6 +16,8 @@ from PyQt6.QtCore import QObject, QThread, pyqtSignal
 
 logger = logging.getLogger(__name__)
 
+AUDIO_EXTENSIONS = {".mp3", ".wav", ".ogg", ".flac", ".m4a", ".aac", ".wma", ".opus"}
+
 
 class AudioWorker(QObject):
     finished = pyqtSignal()
@@ -96,6 +98,10 @@ class MusicPlayer(QObject):
             pass
         self._current_file: Path | None = None
         self._active_threads: list[QThread] = []
+        self._queue: list[dict[str, Any]] = []
+        self._queue_index: int = -1
+        self._shuffle: bool = False
+        self._repeat: bool = False
         atexit.register(self.cleanup)
 
     @property
@@ -128,7 +134,52 @@ class MusicPlayer(QObject):
             pass
         self.speed_changed.emit(self._speed)
 
+    @property
+    def shuffle(self) -> bool:
+        return self._shuffle
+
+    @shuffle.setter
+    def shuffle(self, value: bool) -> None:
+        self._shuffle = value
+
+    @property
+    def repeat(self) -> bool:
+        return self._repeat
+
+    @repeat.setter
+    def repeat(self, value: bool) -> None:
+        self._repeat = value
+
+    def set_queue(self, tracks: list[dict[str, Any]], start_index: int = 0) -> None:
+        self._queue = tracks[:]
+        self._queue_index = start_index
+
+    def play_next(self) -> None:
+        if not self._queue:
+            return
+        if self._repeat:
+            self._queue_index = self._queue_index % len(self._queue)
+        elif self._queue_index < len(self._queue) - 1:
+            self._queue_index += 1
+        else:
+            return
+        track = self._queue[self._queue_index]
+        self.load_and_play(track)
+
+    def play_previous(self) -> None:
+        if not self._queue or self._queue_index <= 0:
+            return
+        self._queue_index -= 1
+        track = self._queue[self._queue_index]
+        self.load_and_play(track)
+
     def load_and_play(self, track: dict[str, Any]) -> None:
+        local_path = track.get("local_path")
+        if local_path and Path(local_path).exists():
+            self.stop()
+            self._current_track = track
+            self._play_file(Path(local_path))
+            return
         preview_url = track.get("preview_url")
         if not preview_url:
             return
@@ -140,6 +191,22 @@ class MusicPlayer(QObject):
             self._play_file(cache_file)
         else:
             self._download_and_play(preview_url, cache_file)
+
+    def load_local_file(self, file_path: str | Path) -> None:
+        path = Path(file_path)
+        if not path.exists() or path.suffix.lower() not in AUDIO_EXTENSIONS:
+            return
+        track = {
+            "id": str(path.stem),
+            "name": path.stem,
+            "artist": "",
+            "album": "",
+            "duration_ms": 0,
+            "local_path": str(path.resolve()),
+        }
+        self.stop()
+        self._current_track = track
+        self._play_file(path.resolve())
 
     def _download_and_play(self, url: str, target: Path) -> None:
         worker = AudioWorker(url, str(target))
