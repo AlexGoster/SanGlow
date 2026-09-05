@@ -32,6 +32,7 @@ DisableStartupPrompt=yes
 DisableDirPage=no
 DisableFinishedPage=no
 WindowVisible=yes
+UsePreviousAppDir=yes
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -63,8 +64,26 @@ Name: "{autodesktop}\SanGlow"; Filename: "{app}\SanGlow.exe"; Tasks: desktopicon
 Filename: "{app}\SanGlow.exe"; Description: "{cm:LaunchProgram,SanGlow}"; Flags: nowait postinstall skipifsilent shellexec
 
 [Code]
-procedure CurStepChanged(CurStep: TSetupStep);
+function KillProcessByName(const FileName: string): Boolean;
+var
+  ResultCode: Integer;
 begin
+  Result := Exec('taskkill', '/f /im ' + FileName, '', 0, ewWaitUntilTerminated, ResultCode);
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ResultCode: Integer;
+begin
+  if CurStep = ssInstall then
+  begin
+    KillProcessByName('SanGlow.exe');
+    KillProcessByName('SanGlow-x64.exe');
+    Exec('taskkill', '/f /im SanGlow.exe', '', 0, ewWaitUntilTerminated, ResultCode);
+    Exec('taskkill', '/f /im SanGlow-x64.exe', '', 0, ewWaitUntilTerminated, ResultCode);
+    Sleep(500);
+    DelTree(ExpandConstant('{app}\_internal'), True, True, True);
+  end;
   if (CurStep = ssPostInstall) and IsTaskSelected('cleandata') then
   begin
     DelTree(ExpandConstant('{localappdata}\SanGlow'), True, True, True);
