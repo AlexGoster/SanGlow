@@ -1,15 +1,15 @@
 [Setup]
 AppName=SanGlow
-AppVersion=1.1.0
+AppVersion=1.2.0
 AppPublisher=AlexGoster
 AppPublisherURL=https://github.com/AlexGoster/SanGlow
 AppSupportURL=https://github.com/AlexGoster/SanGlow/issues
 AppUpdatesURL=https://github.com/AlexGoster/SanGlow/releases
 AppCopyright=Copyright (c) 2024-2026 AlexGoster
-VersionInfoVersion=1.1.0.0
+VersionInfoVersion=1.2.0.0
 VersionInfoDescription=SanGlow Music Player
 VersionInfoProductName=SanGlow
-VersionInfoProductVersion=1.1.0
+VersionInfoProductVersion=1.2.0
 DefaultDirName={autopf}\SanGlow
 DefaultGroupName=SanGlow
 OutputDir=installer_output
