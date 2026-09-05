@@ -15,6 +15,13 @@ class TimeOfDay(Enum):
     NIGHT = "night"
 
 
+@dataclass
+class Greeting:
+    text: str
+    time_of_day: TimeOfDay
+    emoji: str = ""
+
+
 _EMOJI = {
     TimeOfDay.MORNING: "\u2600\ufe0f",
     TimeOfDay.DAY: "\ud83c\udf1e",
